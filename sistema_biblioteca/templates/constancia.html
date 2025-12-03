@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Constancia N° {{ correlativo }}</title>
+    <style>
+        @page { size: A4; margin: 0; }
+        body { margin: 0; padding: 0; background: #525659; font-family: Arial, sans-serif; display: flex; justify-content: center; }
+        
+        .hoja-a4 {
+            background: white; width: 21cm; min-height: 29.7cm; 
+            padding: 2.5cm 3cm; box-sizing: border-box; position: relative;
+        }
+
+        /* ENCABEZADO */
+        .header-top { text-align: center; margin-bottom: 40px; color: black; }
+        .titulo-unap { font-family: "Times New Roman", Times, serif; font-size: 26pt; font-weight: 900; letter-spacing: 1px; line-height: 1; margin: 0; }
+        .subtitulo { font-size: 10pt; font-weight: bold; margin-top: 5px; }
+
+        /* TÍTULO DOC */
+        .titulo-doc { font-family: "Times New Roman", Times, serif; font-size: 14pt; font-weight: bold; text-decoration: underline; margin-top: 40px; margin-bottom: 30px; text-align: left; }
+
+        /* DATOS EN BLOQUE (Estilo PDF) */
+        .fila-dato { margin-bottom: 20px; }
+        .etiqueta { display: block; font-weight: normal; margin-bottom: 3px; font-size: 12pt; }
+        .valor { display: block; font-weight: bold; margin-left: 20px; font-size: 13pt; }
+
+        /* TEXTO Y FECHA */
+        .texto-cuerpo { font-size: 12pt; text-align: justify; line-height: 1.5; margin-top: 40px; }
+        .fecha-lugar { margin-top: 50px; font-size: 12pt; margin-bottom: 80px; }
+
+        /* FIRMA */
+        .firma-container { text-align: center; width: 320px; margin: 0 auto; position: relative; }
+        .img-firma { width: 200px; position: relative; z-index: 2; margin-bottom: -15px; display: block; margin: 0 auto; }
+        .linea-firma { border-top: 1px solid #000; margin: 5px 0; }
+        .cargo { font-size: 10pt; }
+
+        /* SELLO DE FONDO SIMULADO */
+        .sello-fondo {
+            position: absolute; top: -50px; left: 50%; transform: translateX(-50%);
+            width: 130px; height: 130px; border: 3px double #004d40; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; text-align: center;
+            font-size: 10px; font-weight: bold; color: #004d40; opacity: 0.2; pointer-events: none;
+        }
+
+        .btn-flotante { position: fixed; top: 20px; right: 20px; background: #d32f2f; color: white; padding: 15px 25px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        @media print { body { background: none; } .hoja-a4 { width: 100%; height: auto; padding: 2.5cm 3cm; } .btn-flotante { display: none; } @page { margin: 0; } }
+    </style>
+</head>
+<body>
+    <button class="btn-flotante" onclick="window.print()">🖨️ IMPRIMIR / PDF</button>
+
+    <div class="hoja-a4">
+        <!-- LOGO (Si existe en static) -->
+        <img src="{{ url_for('static', filename='logo.png') }}" style="position: absolute; top: 2.5cm; left: 2.5cm; width: 65px;" alt="">
+
+        <div class="header-top">
+            <div class="titulo-unap">UNAP</div>
+            <div class="subtitulo">DIRECCIÓN DE BIENESTAR UNIVERSITARIO (DBU)</div>
+            <div class="subtitulo">UNIDAD DE BIBLIOTECA</div>
+        </div>
+
+        <div class="titulo-doc">CONSTANCIA N° {{ correlativo }}</div>
+
+        <div style="margin-left: 10px;">
+            <div class="fila-dato">
+                <span class="etiqueta">El (la) Sr. (a):</span>
+                <span class="valor">{{ alumno.nombre }}</span>
+            </div>
+            <div class="fila-dato">
+                <span class="etiqueta">Facultad:</span>
+                <span class="valor">{{ alumno.facultad }}</span>
+            </div>
+            <div class="fila-dato">
+                <span class="etiqueta">Escuela:</span>
+                <span class="valor">{{ alumno.escuela }}</span>
+            </div>
+        </div>
+
+        <div class="texto-cuerpo">
+            <strong>NO TIENE DEUDA CON ESTA BIBLIOTECA</strong>, se expide la presente constancia para los fines que estime conveniente.
+        </div>
+
+        <div class="fecha-lugar">San Juan Bautista, {{ fecha_actual }}.</div>
+
+        <div class="firma-container">
+            <div class="sello-fondo">UNIDAD DE<br>BIBLIOTECA<br>UNAP</div>
+            <img src="{{ url_for('static', filename='firma.png') }}" class="img-firma" alt="Firma">
+            <div class="linea-firma"></div>
+            <div style="font-weight: bold;">Margarita Fasanando Vásquez</div>
+            <div class="cargo">Jefe de la Unidad de Biblioteca</div>
+        </div>
+    </div>
+</body>
+</html>

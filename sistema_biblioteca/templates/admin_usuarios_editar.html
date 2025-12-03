@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Editar Usuario</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-light">
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow border-warning">
+                <div class="card-header bg-warning text-dark fw-bold d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-user-edit"></i> Editar Administrador</span>
+                    <a href="/admin/usuarios" class="btn btn-sm btn-dark">Cancelar</a>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small">USUARIO</label>
+                            <input type="text" name="usuario" class="form-control" value="{{ admin.usuario }}" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small">NUEVA CONTRASEÑA</label>
+                            <input type="text" name="password" class="form-control" placeholder="(Dejar en blanco para no cambiar)">
+                            <small class="text-muted">Solo escribe aquí si quieres cambiarle la clave.</small>
+                        </div>
+                        
+                        <hr>
+                        <label class="form-label fw-bold small mb-2">PERMISOS:</label>
+                        
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" name="p_pagos" id="p1" {% if admin.p_pagos %}checked{% endif %}>
+                            <label class="form-check-label" for="p1">Gestión de Pagos</label>
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" name="p_deudores" id="p2" {% if admin.p_deudores %}checked{% endif %}>
+                            <label class="form-check-label" for="p2">Gestión de Deudores</label>
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" name="p_reportes" id="p3" {% if admin.p_reportes %}checked{% endif %}>
+                            <label class="form-check-label" for="p3">Ver Lista/Reportes</label>
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" name="p_config" id="p4" {% if admin.p_config %}checked{% endif %}>
+                            <label class="form-check-label" for="p4">Configuración (Fac/Esc/Grados)</label>
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" name="p_usuarios" id="p5" {% if admin.p_usuarios %}checked{% endif %}>
+                            <label class="form-check-label text-danger fw-bold" for="p5">Crear/Editar Usuarios (Super Admin)</label>
+                        </div>
+
+                        <button class="btn btn-warning w-100 fw-bold">Guardar Cambios</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
