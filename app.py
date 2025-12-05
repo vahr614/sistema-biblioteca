@@ -1,29 +1,33 @@
 import os
 import pandas as pd
-from flask import Flask, render_template, request, redirect, url_for, flash, send_file, session
+from flask import Flask, render_template, request, redirect, url_for, flash, send_file, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, desc
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
+import subprocess
 import io
 
-# LIBRERÍAS WORD/PDF
+# LIBRERÍAS PARA DOCUMENTOS
 from docxtpl import DocxTemplate
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from pypdf import PdfReader, PdfWriter
 
 app = Flask(__name__)
+# Clave secreta para seguridad (Render la puede configurar, o usa esta por defecto)
 app.secret_key = os.environ.get('SECRET_KEY', 'clave_segura_unap_2025')
 
-# --- CONFIGURACIÓN BD ---
+# --- CONFIGURACIÓN DE LA BASE DE DATOS ---
+# 1. Intentamos leer la configuración desde Render
 db_uri = os.environ.get('DATABASE_URL')
 
-#if not db_uri:
-    # === CONEXIÓN DIRECTA A LA NUBE (RENDER) ===
-    # Esta es la dirección "External Database URL" sacada de tu imagen:
-   #db_uri = "postgresql://db_biblioteca_f9zy_user:aKYvfUON1Wql05SGi90GWsFwSuf4NBNS@dpg-d4o8kt2dbo4c73ad2pe0-a.oregon-postgres.render.com/db_biblioteca_f9zy"
+# 2. Si no hay configuración de Render, usamos la local (Tu PC)
+if not db_uri:
+    # Contraseña simple 'admin123' para evitar errores de tildes en Windows
+    db_uri = 'postgresql://postgres:admin123@localhost:5432/biblioteca_db'
 
+# 3. Parche obligatorio para que funcione en Render (cambia postgres:// a postgresql://)
 if db_uri and db_uri.startswith("postgres://"):
     db_uri = db_uri.replace("postgres://", "postgresql://", 1)
 
@@ -32,7 +36,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-# --- MODELOS ---
+# --- MODELOS (TABLAS) ---
 class Alumno(db.Model):
     __tablename__ = 'alumnos'
     id = db.Column(db.Integer, primary_key=True)
@@ -40,12 +44,10 @@ class Alumno(db.Model):
     dni = db.Column(db.String(20), index=True)
     fecha_pago = db.Column(db.String(20)) 
     monto = db.Column(db.Float) 
-    
     nombre = db.Column(db.String(150))
     facultad = db.Column(db.String(150))
     escuela = db.Column(db.String(150))
     grado = db.Column(db.String(50))
-    
     fecha_registro = db.Column(db.DateTime, default=datetime.now)
     numero_anual = db.Column(db.Integer)
     anio_registro = db.Column(db.Integer)
@@ -65,6 +67,7 @@ class Administrador(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     usuario = db.Column(db.String(50), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
+    # Permisos
     p_pagos = db.Column(db.Boolean, default=False)
     p_deudores = db.Column(db.Boolean, default=False)
     p_reportes = db.Column(db.Boolean, default=False)
@@ -75,18 +78,26 @@ class Facultad(db.Model):
     __tablename__ = 'facultades'
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), unique=True, nullable=False)
+    escuelas = db.relationship('Escuela', backref='facultad_rel', lazy=True)
 
 class Escuela(db.Model):
     __tablename__ = 'escuelas'
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), unique=True, nullable=False)
+    facultad_id = db.Column(db.Integer, db.ForeignKey('facultades.id'), nullable=False)
 
 class Grado(db.Model):
     __tablename__ = 'grados'
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), unique=True, nullable=False)
 
-# --- RUTAS DE ACCESO ---
+# --- RUTAS API (Para selects dinámicos) ---
+@app.route('/api/escuelas/<int:id_facultad>')
+def api_get_escuelas(id_facultad):
+    escuelas = Escuela.query.filter_by(facultad_id=id_facultad).order_by(Escuela.nombre).all()
+    return jsonify([{'id': e.id, 'nombre': e.nombre} for e in escuelas])
+
+# --- RUTAS PÚBLICAS ---
 @app.route('/', methods=['GET', 'POST'])
 def atencion():
     error = None
@@ -96,21 +107,25 @@ def atencion():
         dni = request.form.get('dni', '').strip()
         fecha = request.form.get('fecha', '').strip()
 
+        # 1. Verificar si es deudor
         deudor = Deudor.query.filter((Deudor.identificador==dni) | (Deudor.identificador==voucher)).first()
         if deudor:
             error = f"🚫 ACCESO DENEGADO: {deudor.tipo} bloqueado por '{deudor.motivo}'."
         else:
+            # 2. Buscar pago
             alumno = Alumno.query.filter_by(voucher=voucher, dni=dni, fecha_pago=fecha).first()
             if alumno:
                 if alumno.monto and alumno.monto < 57.50:
                     error = "❌ Error: El monto pagado es insuficiente (Menor a S/ 57.50)."
                 elif alumno.nombre:
+                    # Ya registrado -> Mostrar descarga
                     alumno_encontrado = alumno
                 else:
+                    # Nuevo -> Ir a completar datos
                     flash("✅ Pago validado. Complete sus datos.")
                     return redirect(url_for('completar_datos', id=alumno.id))
             else:
-                error = "❌ Error: Datos incorrectos."
+                error = "❌ Error: Datos incorrectos o pago no registrado."
     return render_template('atencion.html', error=error, alumno=alumno_encontrado)
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -118,7 +133,6 @@ def login_admin():
     if request.method == 'POST':
         usuario = request.form['usuario']
         password_ingresado = request.form['password']
-        
         admin = Administrador.query.filter_by(usuario=usuario).first()
         
         if admin and check_password_hash(admin.password, password_ingresado):
@@ -132,7 +146,6 @@ def login_admin():
             return redirect(url_for('admin'))
         else:
             flash("❌ Usuario o contraseña incorrectos")
-            
     return render_template('login_admin.html')
 
 @app.route('/logout')
@@ -140,7 +153,7 @@ def logout():
     session.clear()
     return redirect(url_for('login_admin'))
 
-# --- DASHBOARD ADMIN ---
+# --- PANEL ADMIN ---
 @app.route('/admin', methods=['GET'])
 def admin():
     if not session.get('admin_logged_in'): return redirect(url_for('login_admin'))
@@ -149,37 +162,49 @@ def admin():
     t_emitidas = Alumno.query.filter(Alumno.nombre != None).count()
     t_pendientes = t_vouchers - t_emitidas
     t_deudores = Deudor.query.count()
-
-    q_facultades = db.session.query(Alumno.facultad, func.count(Alumno.id)).filter(Alumno.facultad != None).group_by(Alumno.facultad).all()
-    l_facultades = [row[0] for row in q_facultades]
-    d_facultades = [row[1] for row in q_facultades]
-
-    q_escuelas = db.session.query(Alumno.escuela, func.count(Alumno.id)).filter(Alumno.escuela != None).group_by(Alumno.escuela).order_by(func.count(Alumno.id).desc()).limit(10).all()
-    l_escuelas = [row[0] for row in q_escuelas]
-    d_escuelas = [row[1] for row in q_escuelas]
-
-    q_grados = db.session.query(Alumno.grado, func.count(Alumno.id)).filter(Alumno.grado != None).group_by(Alumno.grado).all()
-    l_grados = [row[0] for row in q_grados]
-    d_grados = [row[1] for row in q_grados]
-
-    repetidos = db.session.query(Alumno.dni, Alumno.nombre, func.count(Alumno.id).label('total')).filter(Alumno.nombre != None).group_by(Alumno.dni, Alumno.nombre).having(func.count(Alumno.id) > 1).order_by(desc('total')).limit(10).all()
+    
+    # Datos para gráficos
+    q_fac = db.session.query(Alumno.facultad, func.count(Alumno.id)).filter(Alumno.facultad != None).group_by(Alumno.facultad).all()
+    l_fac, d_fac = ([row[0] for row in q_fac], [row[1] for row in q_fac])
+    
+    q_esc = db.session.query(Alumno.escuela, func.count(Alumno.id)).filter(Alumno.escuela != None).group_by(Alumno.escuela).order_by(func.count(Alumno.id).desc()).limit(10).all()
+    l_esc, d_esc = ([row[0] for row in q_esc], [row[1] for row in q_esc])
+    
+    q_gra = db.session.query(Alumno.grado, func.count(Alumno.id)).filter(Alumno.grado != None).group_by(Alumno.grado).all()
+    l_gra, d_gra = ([row[0] for row in q_gra], [row[1] for row in q_gra])
+    
+    rep = db.session.query(Alumno.dni, Alumno.nombre, func.count(Alumno.id).label('total')).filter(Alumno.nombre != None).group_by(Alumno.dni, Alumno.nombre).having(func.count(Alumno.id) > 1).order_by(desc('total')).limit(10).all()
 
     return render_template('admin.html', usuario=session.get('admin_user'),
                            t_vouchers=t_vouchers, t_emitidas=t_emitidas, t_pendientes=t_pendientes, t_deudores=t_deudores,
-                           l_facultades=l_facultades, d_facultades=d_facultades,
-                           l_escuelas=l_escuelas, d_escuelas=d_escuelas,
-                           l_grados=l_grados, d_grados=d_grados,
-                           repetidos=repetidos)
+                           l_facultades=l_fac, d_facultades=d_fac, l_escuelas=l_esc, d_escuelas=d_esc, l_grados=l_gra, d_grados=d_gra, repetidos=rep)
 
-# --- MÓDULO PAGOS ---
-@app.route('/admin/pagos', methods=['GET', 'POST'])
-def admin_pagos():
-    if not session.get('admin_logged_in'): return redirect(url_for('login_admin'))
-    if not session.get('p_pagos'): 
-        flash("⛔ No tienes permiso para acceder a PAGOS.")
+# --- BACKUP ---
+@app.route('/admin/backup')
+def admin_backup():
+    if not session.get('admin_logged_in') or not session.get('p_usuarios'): 
+        flash("⛔ Solo el Super Admin puede descargar copias.")
+        return redirect(url_for('admin'))
+    
+    db_url = app.config['SQLALCHEMY_DATABASE_URI']
+    filename = f"backup_{datetime.now().strftime('%Y%m%d_%H%M')}.sql"
+    # pg_dump viene instalado en Render
+    command = f"pg_dump {db_url} -f {filename}"
+    
+    try:
+        subprocess.run(command, shell=True, check=True)
+        return send_file(filename, as_attachment=True, download_name=filename, mimetype='application/sql')
+    except Exception as e:
+        flash(f"❌ Error al generar backup: {str(e)}")
         return redirect(url_for('admin'))
 
+# --- GESTIÓN PAGOS ---
+@app.route('/admin/pagos', methods=['GET', 'POST'])
+def admin_pagos():
+    if not session.get('admin_logged_in') or not session.get('p_pagos'): return redirect(url_for('admin'))
+    
     if request.method == 'POST':
+        # Manual
         if 'voucher_manual' in request.form:
             v = request.form['voucher_manual'].strip()
             d = request.form['dni_manual'].strip()
@@ -188,7 +213,7 @@ def admin_pagos():
             try:
                 m_float = float(m_str)
                 if m_float < 57.50:
-                    flash(f"⚠️ Error: Monto S/{m_float} insuficiente. Mínimo S/ 57.50")
+                    flash(f"⚠️ Error: Monto S/{m_float} insuficiente.")
                 elif not Alumno.query.filter_by(voucher=v).first():
                     db.session.add(Alumno(voucher=v, dni=d, fecha_pago=f, monto=m_float))
                     db.session.commit()
@@ -196,6 +221,7 @@ def admin_pagos():
                 else: flash("⚠️ Voucher ya existe.")
             except: flash("❌ El monto debe ser numérico.")
 
+        # Carga Masiva
         elif 'archivo' in request.files:
             file = request.files['archivo']
             if file.filename != '':
@@ -205,21 +231,16 @@ def admin_pagos():
                     else:
                         df = pd.read_excel(file, dtype=str)
                     count = 0
-                    ignorados = 0
                     for _, row in df.iterrows():
                         if len(row) < 4: continue
-                        v = str(row[0]).strip()
-                        d = str(row[1]).strip()
-                        f_pago = str(row[2]).strip()
-                        m_raw = str(row[3]).strip()
+                        v, d, f_pago, m_raw = str(row[0]).strip(), str(row[1]).strip(), str(row[2]).strip(), str(row[3]).strip()
                         try:
                             m_float = float(m_raw)
                             if m_float >= 57.50:
                                 if not Alumno.query.filter_by(voucher=v).first():
                                     db.session.add(Alumno(voucher=v, dni=d, fecha_pago=f_pago, monto=m_float))
                                     count += 1
-                            else: ignorados += 1
-                        except: ignorados += 1
+                        except: pass
                     db.session.commit()
                     flash(f"✅ Carga Masiva: {count} nuevos.")
                 except Exception as e: flash(f"Error: {e}")
@@ -232,31 +253,26 @@ def admin_eliminar_pago(id):
     if not session.get('admin_logged_in') or not session.get('p_pagos'): return redirect(url_for('admin'))
     db.session.delete(Alumno.query.get_or_404(id))
     db.session.commit()
-    flash("🗑️ Pago eliminado.")
     return redirect(url_for('admin_pagos'))
 
-# --- RESTO DE MÓDULOS ---
+# --- GESTIÓN DEUDORES ---
 @app.route('/admin/deudores', methods=['GET', 'POST'])
 def admin_deudores():
-    if not session.get('admin_logged_in'): return redirect(url_for('login_admin'))
-    if not session.get('p_deudores'): 
-        flash("⛔ Sin permiso.")
-        return redirect(url_for('admin'))
-
+    if not session.get('admin_logged_in') or not session.get('p_deudores'): return redirect(url_for('admin'))
     if request.method == 'POST':
         identificador = request.form['identificador'].strip()
         nombre = request.form['nombre'].strip().upper()
-        tipo = request.form['tipo'].strip().upper()
-        facultad = request.form['facultad'].strip().upper()
-        escuela = request.form['escuela'].strip().upper()
-        motivo = request.form['motivo'].strip()
         if not Deudor.query.filter_by(identificador=identificador).first():
-            db.session.add(Deudor(identificador=identificador, nombre=nombre, tipo=tipo, facultad=facultad, escuela=escuela, motivo=motivo))
+            db.session.add(Deudor(identificador=identificador, nombre=nombre, tipo=request.form['tipo'], facultad=request.form['facultad'], escuela=request.form['escuela'], motivo=request.form['motivo']))
             db.session.commit()
             flash(f"🚫 Bloqueado: {nombre}")
         else: flash("⚠️ Ya en lista negra.")
         return redirect(url_for('admin_deudores'))
-    return render_template('admin_deudores.html', deudores=Deudor.query.order_by(Deudor.id.desc()).all(), facultades=Facultad.query.all(), escuelas=Escuela.query.all())
+    
+    facs = Facultad.query.order_by(Facultad.nombre).all()
+    escs = Escuela.query.order_by(Escuela.nombre).all()
+    deudores = Deudor.query.order_by(Deudor.id.desc()).all()
+    return render_template('admin_deudores.html', deudores=deudores, facultades=facs, escuelas=escs)
 
 @app.route('/admin/deudores/eliminar/<int:id>')
 def admin_eliminar_deudor(id):
@@ -268,71 +284,43 @@ def admin_eliminar_deudor(id):
 
 @app.route('/admin/lista')
 def admin_lista():
-    if not session.get('admin_logged_in'): return redirect(url_for('login_admin'))
-    if not session.get('p_reportes'): 
-        flash("⛔ Sin permiso.")
-        return redirect(url_for('admin'))
+    if not session.get('admin_logged_in') or not session.get('p_reportes'): return redirect(url_for('admin'))
     alumnos = Alumno.query.filter(Alumno.nombre != None).order_by(Alumno.id.desc()).all()
     return render_template('admin_lista.html', alumnos=alumnos, usuario=session.get('admin_user'))
 
+# --- GESTIÓN USUARIOS ---
 @app.route('/admin/usuarios', methods=['GET', 'POST'])
 def admin_usuarios():
-    if not session.get('admin_logged_in'): return redirect(url_for('login_admin'))
-    if not session.get('p_usuarios'): 
-        flash("⛔ Solo Super Admin.")
-        return redirect(url_for('admin'))
-
+    if not session.get('admin_logged_in') or not session.get('p_usuarios'): return redirect(url_for('admin'))
     if request.method == 'POST':
         u = request.form['usuario'].strip()
-        p = request.form['password'].strip()
-        perm_pagos = 'p_pagos' in request.form
-        perm_deudores = 'p_deudores' in request.form
-        perm_reportes = 'p_reportes' in request.form
-        perm_config = 'p_config' in request.form
-        perm_usuarios = 'p_usuarios' in request.form
-
         if not Administrador.query.filter_by(usuario=u).first():
-            clave_segura = generate_password_hash(p)
-            nuevo = Administrador(usuario=u, password=clave_segura, 
-                                  p_pagos=perm_pagos, p_deudores=perm_deudores, 
-                                  p_reportes=perm_reportes, p_config=perm_config, 
-                                  p_usuarios=perm_usuarios)
+            nuevo = Administrador(usuario=u, password=generate_password_hash(request.form['password']), 
+                                  p_pagos='p_pagos' in request.form, p_deudores='p_deudores' in request.form, 
+                                  p_reportes='p_reportes' in request.form, p_config='p_config' in request.form, 
+                                  p_usuarios='p_usuarios' in request.form)
             db.session.add(nuevo)
             db.session.commit()
             flash(f"✅ Creado: {u}")
-        else: flash("⚠️ Ya existe.")
         return redirect(url_for('admin_usuarios'))
     return render_template('admin_usuarios.html', admins=Administrador.query.all(), usuario_actual=session.get('admin_user'))
 
 @app.route('/admin/usuarios/editar/<int:id>', methods=['GET', 'POST'])
 def admin_editar_usuario(id):
-    if not session.get('admin_logged_in') or not session.get('p_usuarios'): 
-        return redirect(url_for('admin'))
-    
+    if not session.get('admin_logged_in') or not session.get('p_usuarios'): return redirect(url_for('admin'))
     admin_edit = Administrador.query.get_or_404(id)
-    
     if request.method == 'POST':
         admin_edit.usuario = request.form['usuario'].strip()
-        
-        # Solo actualizamos password si escribieron algo nuevo
-        nueva_pass = request.form['password'].strip()
-        if nueva_pass:
-            admin_edit.password = generate_password_hash(nueva_pass)
-            
-        # Actualizar permisos
+        if request.form['password'].strip():
+            admin_edit.password = generate_password_hash(request.form['password'].strip())
         admin_edit.p_pagos = 'p_pagos' in request.form
         admin_edit.p_deudores = 'p_deudores' in request.form
         admin_edit.p_reportes = 'p_reportes' in request.form
         admin_edit.p_config = 'p_config' in request.form
         admin_edit.p_usuarios = 'p_usuarios' in request.form
-        
-        try:
-            db.session.commit()
-            flash(f"✅ Usuario '{admin_edit.usuario}' actualizado.")
-            return redirect(url_for('admin_usuarios'))
-        except Exception as e:
-            flash(f"❌ Error: {e}")
-            
+        db.session.commit()
+        flash(f"✅ Actualizado.")
+        return redirect(url_for('admin_usuarios'))
     return render_template('admin_usuarios_editar.html', admin=admin_edit)
 
 @app.route('/admin/usuarios/eliminar/<int:id>')
@@ -344,6 +332,7 @@ def admin_eliminar_usuario(id):
         db.session.commit()
     return redirect(url_for('admin_usuarios'))
 
+# --- CONFIGURACIÓN ---
 @app.route('/admin/facultades', methods=['GET', 'POST'])
 def admin_facultades():
     if not session.get('admin_logged_in') or not session.get('p_config'): return redirect(url_for('admin'))
@@ -367,9 +356,9 @@ def admin_escuelas():
     if request.method == 'POST':
         n = request.form['nombre'].strip().upper()
         if not Escuela.query.filter_by(nombre=n).first():
-            db.session.add(Escuela(nombre=n))
+            db.session.add(Escuela(nombre=n, facultad_id=request.form['facultad_id']))
             db.session.commit()
-    return render_template('admin_escuelas.html', escuelas=Escuela.query.order_by(Escuela.nombre).all())
+    return render_template('admin_escuelas.html', escuelas=Escuela.query.order_by(Escuela.nombre).all(), facultades=Facultad.query.order_by(Facultad.nombre).all())
 
 @app.route('/admin/escuelas/eliminar/<int:id>')
 def admin_eliminar_escuela(id):
@@ -395,31 +384,29 @@ def admin_eliminar_grado(id):
     db.session.commit()
     return redirect(url_for('admin_grados'))
 
-# --- GENERADORES (AQUÍ ESTÁ LA LÓGICA DE NOMBRE SEPARADO) ---
+# --- GENERADORES ---
 @app.route('/completar/<int:id>', methods=['GET', 'POST'])
 def completar_datos(id):
     alumno = Alumno.query.get_or_404(id)
     if alumno.nombre and request.method == 'GET':
-        flash("⚠️ Ya está registrado. Puede descargar su constancia directamente.")
+        flash("⚠️ Ya está registrado.")
         return render_template('atencion.html', alumno=alumno)
 
     if request.method == 'POST':
-        # 1. Recibir datos separados
-        paterno = request.form.get('paterno', '').strip().upper()
-        materno = request.form.get('materno', '').strip().upper()
-        nombres = request.form.get('nombres', '').strip().upper()
-        
-        # 2. Guardar con formato correcto: "PATERNO MATERNO, NOMBRES"
+        paterno = request.form['paterno'].strip().upper()
+        materno = request.form['materno'].strip().upper()
+        nombres = request.form['nombres'].strip().upper()
         alumno.nombre = f"{paterno} {materno}, {nombres}"
         
-        alumno.facultad = request.form['facultad'].strip().upper()
-        alumno.escuela = request.form['escuela'].strip().upper()
+        fac_obj = Facultad.query.get(int(request.form['facultad']))
+        esc_obj = Escuela.query.get(int(request.form['escuela']))
+        alumno.facultad = fac_obj.nombre
+        alumno.escuela = esc_obj.nombre
         alumno.grado = request.form['grado'].strip().upper()
         
         year_actual = datetime.now().year
         ultimo = Alumno.query.filter(Alumno.anio_registro == year_actual).order_by(Alumno.numero_anual.desc()).first()
-        nuevo_numero = (ultimo.numero_anual + 1) if (ultimo and ultimo.numero_anual) else 1
-        alumno.numero_anual = nuevo_numero
+        alumno.numero_anual = (ultimo.numero_anual + 1) if (ultimo and ultimo.numero_anual) else 1
         alumno.anio_registro = year_actual
         
         db.session.commit()
@@ -428,7 +415,6 @@ def completar_datos(id):
     
     return render_template('completar_datos.html', alumno=alumno, 
                            facultades=Facultad.query.order_by(Facultad.nombre).all(), 
-                           escuelas=Escuela.query.order_by(Escuela.nombre).all(),
                            grados=Grado.query.order_by(Grado.id).all())
 
 @app.route('/ver_pdf/<int:id>')
@@ -445,22 +431,14 @@ def generar_pdf_sistema(id, download=False):
     anio_final = alumno.anio_registro if alumno.anio_registro else datetime.now().year
     correlativo = f"{str(numero_final).zfill(3)}-{anio_final}-UB/DBU-UNAP"
     
-    meses = ("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre")
-    hoy = datetime.now()
-    fecha_texto = f"{hoy.day} de {meses[hoy.month - 1]} de {hoy.year}"
-
-    txt_facultad = alumno.facultad
-    if txt_facultad.startswith("FACULTAD DE "): txt_facultad = txt_facultad.replace("FACULTAD DE ", "", 1)
-    elif txt_facultad.startswith("FACULTAD "): txt_facultad = txt_facultad.replace("FACULTAD ", "", 1)
+    txt_facultad = alumno.facultad.replace("FACULTAD DE ", "").replace("FACULTAD ", "")
+    fecha_texto = f"{datetime.now().day} de {('enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre')[datetime.now().month-1]} de {datetime.now().year}"
 
     packet = io.BytesIO()
     c = canvas.Canvas(packet, pagesize=A4)
     c.setFont("Times-Bold", 14) 
-    texto_titulo = f"CONSTANCIA N° {correlativo}"
-    x_titulo, y_titulo = 180, 700
-    c.drawString(x_titulo, y_titulo, texto_titulo)
-    ancho_texto = c.stringWidth(texto_titulo, "Times-Bold", 14)
-    c.line(x_titulo, y_titulo - 3, x_titulo + ancho_texto, y_titulo - 3)
+    c.drawString(180, 700, f"CONSTANCIA N° {correlativo}")
+    c.line(180, 697, 180 + c.stringWidth(f"CONSTANCIA N° {correlativo}", "Times-Bold", 14), 697)
     c.setFont("Helvetica-Bold", 12)
     c.drawString(180, 656, f"{alumno.nombre}")
     c.drawString(180, 615, f"{txt_facultad}")
@@ -469,6 +447,7 @@ def generar_pdf_sistema(id, download=False):
     c.drawString(280, 430, f"San Juan Bautista, {fecha_texto}.")
     c.save()
     packet.seek(0)
+    
     try:
         new_pdf = PdfReader(packet)
         existing_pdf = PdfReader(open("fondo_constancia.pdf", "rb"))
@@ -480,62 +459,53 @@ def generar_pdf_sistema(id, download=False):
         output.write(pdf_final)
         pdf_final.seek(0)
         return send_file(pdf_final, as_attachment=download, download_name=f"Constancia_{alumno.voucher}.pdf", mimetype='application/pdf')
-    except: return "Falta fondo_constancia.pdf"
+    except: return "Error: Falta fondo_constancia.pdf"
 
 @app.route('/descargar_word/<int:id>')
 def descargar_word(id):
     alumno = Alumno.query.get_or_404(id)
     numero_final = alumno.numero_anual if alumno.numero_anual else alumno.id
     anio_final = alumno.anio_registro if alumno.anio_registro else datetime.now().year
+    txt_facultad = alumno.facultad.replace("FACULTAD DE ", "").replace("FACULTAD ", "")
     
-    txt_facultad = alumno.facultad
-    if txt_facultad.startswith("FACULTAD DE "): txt_facultad = txt_facultad.replace("FACULTAD DE ", "", 1)
-    elif txt_facultad.startswith("FACULTAD "): txt_facultad = txt_facultad.replace("FACULTAD ", "", 1)
-
     try:
         doc = DocxTemplate("plantilla_constancia.docx")
-        meses = ("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre")
-        hoy = datetime.now()
         context = {
             'correlativo': f"{str(numero_final).zfill(3)}-{anio_final}-UB/DBU-UNAP",
-            'nombre': alumno.nombre,
-            'facultad': txt_facultad,
-            'escuela': alumno.escuela,
-            'grado': alumno.grado,
-            'fecha': f"{hoy.day} de {meses[hoy.month - 1]} de {hoy.year}"
+            'nombre': alumno.nombre, 'facultad': txt_facultad, 'escuela': alumno.escuela, 'grado': alumno.grado,
+            'fecha': f"{datetime.now().day} de {('enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre')[datetime.now().month-1]} de {datetime.now().year}"
         }
         doc.render(context)
         file_stream = io.BytesIO()
         doc.save(file_stream)
         file_stream.seek(0)
         return send_file(file_stream, as_attachment=True, download_name=f"Constancia_{alumno.voucher}.docx", mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-    except: return "Falta plantilla_constancia.docx"
+    except: return "Error: Falta plantilla_constancia.docx"
 
+# --- INICIALIZACIÓN ---
 with app.app_context():
     db.create_all()
-    # Crear usuario SUPER ADMIN (Encriptado)
     if not Administrador.query.filter_by(usuario='admin').first():
-        clave_encriptada = generate_password_hash('admin123')
-        db.session.add(Administrador(
-            usuario='admin', 
-            password=clave_encriptada, 
-            p_pagos=True, p_deudores=True, p_reportes=True, p_config=True, p_usuarios=True
-        ))
+        db.session.add(Administrador(usuario='admin', password=generate_password_hash('admin123'), p_pagos=True, p_deudores=True, p_reportes=True, p_config=True, p_usuarios=True))
         db.session.commit()
     
     if Facultad.query.count() == 0:
-        for f in ["FACULTAD DE CIENCIAS ECONÓMICAS Y DE NEGOCIOS", "FACULTAD DE INGENIERÍA DE SISTEMAS E INFORMÁTICA"]:
-            db.session.add(Facultad(nombre=f))
+        facs = ["FACULTAD DE CIENCIAS ECONÓMICAS Y DE NEGOCIOS", "FACULTAD DE INGENIERÍA DE SISTEMAS E INFORMÁTICA", "FACULTAD DE DERECHO Y CIENCIAS POLÍTICAS"]
+        for f in facs: db.session.add(Facultad(nombre=f))
         db.session.commit()
 
     if Escuela.query.count() == 0:
-        for e in ["INGENIERÍA DE SISTEMAS", "DERECHO", "ENFERMERÍA", "CONTABILIDAD"]:
-            db.session.add(Escuela(nombre=e))
+        f_econ = Facultad.query.filter_by(nombre="FACULTAD DE CIENCIAS ECONÓMICAS Y DE NEGOCIOS").first()
+        f_sist = Facultad.query.filter_by(nombre="FACULTAD DE INGENIERÍA DE SISTEMAS E INFORMÁTICA").first()
+        f_der = Facultad.query.filter_by(nombre="FACULTAD DE DERECHO Y CIENCIAS POLÍTICAS").first()
+        data = {f_econ: ["CONTABILIDAD", "ADMINISTRACIÓN", "ECONOMÍA"], f_sist: ["INGENIERÍA DE SISTEMAS"], f_der: ["DERECHO"]}
+        for fac, escuelas in data.items():
+            if fac: 
+                for e in escuelas: db.session.add(Escuela(nombre=e, facultad_id=fac.id))
         db.session.commit()
 
     if Grado.query.count() == 0:
-        for g in ["BACHILLER", "TÍTULO PROFESIONAL", "MAESTRÍA", "DOCTORADO", "SEGUNDA ESPECIALIDAD"]:
-            db.session.add(Grado(nombre=g))
+        for g in ["BACHILLER", "TÍTULO PROFESIONAL", "MAESTRÍA", "DOCTORADO"]: db.session.add(Grado(nombre=g))
         db.session.commit()
         print("✅ BD OK.")
 
