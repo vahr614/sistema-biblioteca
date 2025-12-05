@@ -24,10 +24,36 @@
             <a href="/admin/exportar_excel" class="btn btn-success shadow-sm">
                 <i class="fas fa-file-excel me-1"></i> Exportar Excel
             </a>
-            
             <a href="/admin" class="btn btn-outline-secondary shadow-sm">
                 <i class="fas fa-arrow-left me-1"></i> Volver
             </a>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body bg-white rounded-3">
+            <form method="GET" action="/admin/lista" class="row g-2 align-items-center">
+                <div class="col-12 col-md-8">
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" name="q" class="form-control border-start-0 ps-0" placeholder="Buscar por DNI o Apellidos..." value="{{ busqueda }}" autofocus>
+                    </div>
+                </div>
+                <div class="col-6 col-md-2">
+                    <button type="submit" class="btn btn-primary w-100 fw-bold">
+                        BUSCAR
+                    </button>
+                </div>
+                <div class="col-6 col-md-2">
+                    {% if busqueda %}
+                        <a href="/admin/lista" class="btn btn-outline-secondary w-100">
+                            <i class="fas fa-times"></i> Limpiar
+                        </a>
+                    {% else %}
+                        <button type="button" class="btn btn-light w-100 disabled text-muted">Limpiar</button>
+                    {% endif %}
+                </div>
+            </form>
         </div>
     </div>
 
@@ -63,11 +89,12 @@
                             </td>
                             <td>
                                 <strong>{{ a.nombre }}</strong>
-                                <div class="small text-muted">DNI: {{ a.dni }}</div>
+                                <div class="small text-muted fw-bold text-primary"><i class="fas fa-id-card me-1"></i>{{ a.dni }}</div>
                             </td>
                             <td>
-                                <div class="small fw-bold text-primary">{{ a.facultad }}</div>
+                                <div class="small fw-bold text-dark">{{ a.facultad }}</div>
                                 <div class="small text-muted">{{ a.escuela }}</div>
+                                <span class="badge bg-info text-dark" style="font-size: 0.7rem;">{{ a.grado }}</span>
                             </td>
                             <td>
                                 <span class="small text-muted">
@@ -86,6 +113,13 @@
                                 </div>
                             </td>
                         </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center py-5 text-muted">
+                                <i class="fas fa-search fa-3x mb-3 text-secondary opacity-50"></i>
+                                <p>No se encontraron constancias con esa búsqueda.</p>
+                            </td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -99,9 +133,13 @@
 <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
 <script>
     $(document).ready(function () {
+        // Configuramos DataTables pero desactivamos su buscador interno 
+        // porque ya hicimos uno mejor arriba que busca en el servidor.
         $('#tablaTramites').DataTable({
             language: { url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json" },
-            order: [[ 0, "desc" ]] 
+            order: [[ 0, "desc" ]],
+            searching: false, // Desactivamos el buscador de JS para usar el de Python
+            lengthChange: false // Ocultamos el selector de "mostrar 10 registros" para limpiar la vista
         });
     });
 </script>
