@@ -18,10 +18,16 @@ app.secret_key = os.environ.get('SECRET_KEY', 'clave_segura_unap_2025')
 
 # --- CONFIGURACIÓN BD ---
 db_uri = os.environ.get('DATABASE_URL')
+
+#if not db_uri:
+    # === CONEXIÓN DIRECTA A LA NUBE (RENDER) ===
+    # Esta es la dirección "External Database URL" sacada de tu imagen:
+   #db_uri = "postgresql://db_biblioteca_f9zy_user:aKYvfUON1Wql05SGi90GWsFwSuf4NBNS@dpg-d4o8kt2dbo4c73ad2pe0-a.oregon-postgres.render.com/db_biblioteca_f9zy"
+
 if db_uri and db_uri.startswith("postgres://"):
     db_uri = db_uri.replace("postgres://", "postgresql://", 1)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = db_uri or 'sqlite:///biblioteca.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)

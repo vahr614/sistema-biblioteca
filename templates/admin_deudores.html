@@ -2,134 +2,124 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestión de Deudores</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
 </head>
 <body class="bg-light">
 
-<div class="container py-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="text-danger fw-bold"><i class="fas fa-ban"></i> Lista Negra (Deudores)</h2>
-        <a href="/admin" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> Volver al Panel
+<div class="container py-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4 gap-2">
+        <h2 class="fw-bold text-danger mb-0"><i class="fas fa-ban"></i> Lista Negra (Deudores)</h2>
+        <a href="/admin" class="btn btn-secondary w-100 w-md-auto">
+            <i class="fas fa-arrow-left"></i> Volver
         </a>
     </div>
 
     {% with messages = get_flashed_messages() %}
         {% if messages %}
-            <div class="alert alert-info">{{ messages[0] }}</div>
+            <div class="alert alert-info shadow-sm">{{ messages[0] }}</div>
         {% endif %}
     {% endwith %}
 
-    <div class="row">
-        <div class="col-md-4 mb-4">
-            <div class="card shadow border-danger">
-                <div class="card-header bg-danger text-white fw-bold">
-                    <i class="fas fa-user-lock"></i> Bloquear Alumno/Docente
-                </div>
-                <div class="card-body">
-                    <form method="POST">
-                        <div class="mb-2">
-                            <label class="fw-bold small">DNI O VOUCHER *</label>
-                            <input type="text" name="identificador" class="form-control" required placeholder="Ej: 70112233">
-                        </div>
-                        
-                        <div class="mb-2">
-                            <label class="fw-bold small">NOMBRE COMPLETO *</label>
-                            <input type="text" name="nombre" class="form-control" required placeholder="Apellidos y Nombres" oninput="this.value = this.value.toUpperCase()">
-                        </div>
-
-                        <div class="mb-2">
-                            <label class="fw-bold small">TIPO DE USUARIO</label>
-                            <select name="tipo" class="form-select" required>
-                                <option value="ALUMNO">ALUMNO</option>
-                                <option value="DOCENTE">DOCENTE</option>
-                                <option value="ADMINISTRATIVO">ADMINISTRATIVO</option>
-                                <option value="EXTERNO">EXTERNO</option>
-                            </select>
-                        </div>
-
-                        <div class="mb-2">
-                            <label class="fw-bold small">FACULTAD</label>
-                            <select name="facultad" class="form-select" required>
-                                <option value="" disabled selected>Seleccione...</option>
-                                {% for f in facultades %}
-                                    <option value="{{ f.nombre }}">{{ f.nombre }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-
-                        <div class="mb-2">
-                            <label class="fw-bold small">ESCUELA / ÁREA</label>
-                            <select name="escuela" class="form-select" required>
-                                <option value="" disabled selected>Seleccione...</option>
-                                {% for e in escuelas %}
-                                    <option value="{{ e.nombre }}">{{ e.nombre }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="fw-bold small">MOTIVO DEL BLOQUEO *</label>
-                            <textarea name="motivo" class="form-control" rows="2" required placeholder="Ej: Debe libro de Anatomía"></textarea>
-                        </div>
-                        
-                        <button class="btn btn-danger w-100 fw-bold">BLOQUEAR ACCESO</button>
-                    </form>
-                </div>
-            </div>
+    <div class="card shadow border-danger mb-4">
+        <div class="card-header bg-danger text-white fw-bold">
+            <i class="fas fa-user-lock"></i> Bloquear Nuevo Alumno
         </div>
+        <div class="card-body">
+            <form method="POST" class="row g-3">
+                <div class="col-12 col-md-6">
+                    <label class="fw-bold small">DNI O VOUCHER A BLOQUEAR</label>
+                    <input type="text" name="identificador" class="form-control" required placeholder="Ej: 70554433">
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="fw-bold small">NOMBRE COMPLETO</label>
+                    <input type="text" name="nombre" class="form-control" required oninput="this.value = this.value.toUpperCase()">
+                </div>
+                
+                <div class="col-12 col-md-4">
+                    <label class="fw-bold small">TIPO</label>
+                    <select name="tipo" class="form-select">
+                        <option value="ALUMNO">ALUMNO</option>
+                        <option value="DOCENTE">DOCENTE</option>
+                        <option value="EXTERNO">EXTERNO</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="fw-bold small">FACULTAD</label>
+                    <select name="facultad" class="form-select">
+                        <option value="">-- Seleccione --</option>
+                        {% for f in facultades %}
+                            <option value="{{ f.nombre }}">{{ f.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="fw-bold small">ESCUELA</label>
+                    <select name="escuela" class="form-select">
+                        <option value="">-- Seleccione --</option>
+                        {% for e in escuelas %}
+                            <option value="{{ e.nombre }}">{{ e.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-        <div class="col-md-8">
-            <div class="card shadow">
-                <div class="card-header bg-dark text-white fw-bold">
-                    <i class="fas fa-list-alt"></i> Usuarios Bloqueados
+                <div class="col-12">
+                    <label class="fw-bold small">MOTIVO DEL BLOQUEO</label>
+                    <input type="text" name="motivo" class="form-control" required placeholder="Ej: Deuda de libros 2024">
                 </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-striped mb-0">
-                            <thead>
-                                <tr>
-                                    <th>DNI</th>
-                                    <th>Nombre y Tipo</th>
-                                    <th>Facultad/Escuela</th>
-                                    <th>Motivo</th>
-                                    <th>Acción</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for d in deudores %}
-                                <tr>
-                                    <td class="fw-bold text-danger">{{ d.identificador }}</td>
-                                    <td>
-                                        {{ d.nombre }}<br>
-                                        <span class="badge bg-secondary">{{ d.tipo }}</span>
-                                    </td>
-                                    <td class="small">
-                                        {{ d.facultad }}<br>
-                                        <i class="text-muted">{{ d.escuela }}</i>
-                                    </td>
-                                    <td class="text-danger fw-bold">{{ d.motivo }}</td>
-                                    <td class="text-end">
-                                        <a href="{{ url_for('admin_eliminar_deudor', id=d.id) }}" 
-                                           class="btn btn-outline-success btn-sm"
-                                           onclick="return confirm('¿Desbloquear a {{ d.nombre }}?')">
-                                            <i class="fas fa-unlock"></i>
-                                        </a>
-                                    </td>
-                                </tr>
-                                {% else %}
-                                <tr><td colspan="5" class="text-center py-4 text-muted">No hay deudores registrados.</td></tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+
+                <div class="col-12">
+                    <button class="btn btn-danger w-100 fw-bold py-2">BLOQUEAR ACCESO</button>
                 </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow">
+        <div class="card-body p-0">
+            <div class="table-responsive p-3">
+                <table id="tablaDeudores" class="table table-striped w-100">
+                    <thead>
+                        <tr>
+                            <th>ID Bloqueado</th>
+                            <th>Nombre</th>
+                            <th>Motivo</th>
+                            <th>Facultad</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for d in deudores %}
+                        <tr>
+                            <td class="fw-bold text-danger">{{ d.identificador }}</td>
+                            <td>{{ d.nombre }}<br><small class="text-muted">{{ d.tipo }}</small></td>
+                            <td>{{ d.motivo }}</td>
+                            <td><small>{{ d.facultad }}</small></td>
+                            <td>
+                                <a href="{{ url_for('admin_eliminar_deudor', id=d.id) }}" class="btn btn-success btn-sm text-white" onclick="return confirm('¿Desbloquear a {{ d.nombre }}?')">
+                                    <i class="fas fa-unlock"></i> Desbloquear
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 </div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+<script>
+    $(document).ready(function () {
+        $('#tablaDeudores').DataTable({ language: { url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json" } });
+    });
+</script>
 
 </body>
 </html>

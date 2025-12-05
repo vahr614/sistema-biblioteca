@@ -2,18 +2,17 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Gestión de Pagos</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>Gestión de Pagos</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
 </head>
 <body class="bg-light">
 
-<div class="container py-5">
-    
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>💰 Gestión de Pagos (Vouchers)</h2>
-        <a href="/admin" class="btn btn-secondary">
+<div class="container py-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4 gap-2">
+        <h2 class="fw-bold text-success mb-0"><i class="fas fa-money-bill-wave"></i> Gestión de Pagos</h2>
+        <a href="/admin" class="btn btn-secondary w-100 w-md-auto">
             <i class="fas fa-arrow-left"></i> Volver al Panel
         </a>
     </div>
@@ -24,51 +23,51 @@
         {% endif %}
     {% endwith %}
 
-    <div class="row">
-        <div class="col-md-5 mb-4">
+    <div class="row g-4">
+        <div class="col-12 col-lg-5">
             <div class="card shadow border-success h-100">
                 <div class="card-header bg-success text-white fw-bold">
-                    <i class="fas fa-user-edit"></i> Registro Manual
+                    <i class="fas fa-edit"></i> Registro Manual
                 </div>
                 <div class="card-body">
-                    <p class="text-muted small">Registra pago de ventanilla. <strong>Mínimo S/ 57.50</strong></p>
+                    <p class="text-muted small">Mínimo S/ 57.50</p>
                     <form method="POST">
-                        <div class="mb-2">
-                            <label class="fw-bold small">N° VOUCHER</label>
-                            <input type="text" name="voucher_manual" class="form-control" required>
+                        <div class="form-floating mb-2">
+                            <input type="text" name="voucher_manual" class="form-control" id="vouch" placeholder="Voucher" required>
+                            <label for="vouch">N° Voucher</label>
                         </div>
-                        <div class="mb-2">
-                            <label class="fw-bold small">DNI ALUMNO</label>
-                            <input type="text" name="dni_manual" class="form-control" required>
+                        <div class="form-floating mb-2">
+                            <input type="text" name="dni_manual" class="form-control" id="dni" placeholder="DNI" required>
+                            <label for="dni">DNI Alumno</label>
                         </div>
-                        <div class="mb-2">
-                            <label class="fw-bold small">FECHA PAGO</label>
-                            <input type="text" name="fecha_manual" class="form-control" required placeholder="DD/MM/AAAA">
+                        <div class="form-floating mb-2">
+                            <input type="text" name="fecha_manual" class="form-control" id="fecha" placeholder="Fecha" required>
+                            <label for="fecha">Fecha (DD/MM/AAAA)</label>
                         </div>
-                        <div class="mb-3">
-                            <label class="fw-bold small">MONTO (S/)</label>
-                            <input type="number" step="0.01" name="monto_manual" class="form-control" required placeholder="57.50">
+                        <div class="form-floating mb-3">
+                            <input type="number" step="0.01" name="monto_manual" class="form-control" id="monto" placeholder="Monto" required>
+                            <label for="monto">Monto (S/)</label>
                         </div>
-                        <button class="btn btn-success w-100 fw-bold">Registrar Pago</button>
+                        <button class="btn btn-success w-100 fw-bold py-2">Registrar</button>
                     </form>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-7 mb-4">
+        <div class="col-12 col-lg-7">
             <div class="card shadow border-primary h-100">
                 <div class="card-header bg-primary text-white fw-bold">
-                    <i class="fas fa-file-upload"></i> Carga Masiva (Banco)
+                    <i class="fas fa-file-upload"></i> Carga Masiva
                 </div>
                 <div class="card-body">
-                    <p class="text-muted small">El archivo debe tener 4 columnas. Se ignorarán montos menores a S/ 57.50.</p>
-                    <div class="alert alert-secondary py-2 text-center small font-monospace">
-                        VOUCHER | DNI | FECHA | MONTO
+                    <div class="alert alert-light border small">
+                        <strong>Formato (4 columnas):</strong><br>
+                        <code>VOUCHER | DNI | FECHA | MONTO</code>
                     </div>
                     <form method="POST" enctype="multipart/form-data">
                         <div class="input-group mb-3">
                             <input type="file" name="archivo" class="form-control" required accept=".txt,.csv,.xlsx">
-                            <button class="btn btn-primary">Subir Archivo</button>
+                            <button class="btn btn-primary">Subir</button>
                         </div>
                     </form>
                 </div>
@@ -76,21 +75,21 @@
         </div>
     </div>
 
-    <div class="card shadow">
+    <div class="card shadow mt-4">
         <div class="card-header bg-dark text-white fw-bold">
-            <i class="fas fa-list"></i> Últimos Pagos Registrados
+            <i class="fas fa-list"></i> Historial de Pagos
         </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table id="tablaPagos" class="table table-striped table-hover mb-0" style="width:100%">
-                    <thead>
+        <div class="card-body p-0">
+            <div class="table-responsive p-3">
+                <table id="tablaPagos" class="table table-striped table-hover w-100">
+                    <thead class="table-light">
                         <tr>
                             <th>Voucher</th>
                             <th>DNI</th>
                             <th>Fecha</th>
                             <th>Monto</th>
                             <th>Estado</th>
-                            <th class="text-end">Acción</th>
+                            <th>Acción</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -99,23 +98,17 @@
                             <td><span class="badge bg-warning text-dark">{{ p.voucher }}</span></td>
                             <td>{{ p.dni }}</td>
                             <td>{{ p.fecha_pago }}</td>
-                            <td class="fw-bold text-success">
-                                {% if p.monto %}S/ {{ p.monto }}{% else %}-{% endif %}
-                            </td>
+                            <td class="fw-bold text-success">{% if p.monto %}S/ {{ p.monto }}{% else %}-{% endif %}</td>
                             <td>
                                 {% if p.nombre %}
                                     <span class="badge bg-success">USADO</span>
-                                    <br><small class="text-muted" style="font-size: 0.75rem;">{{ p.nombre }}</small>
+                                    <div class="small text-muted text-truncate" style="max-width: 150px;">{{ p.nombre }}</div>
                                 {% else %}
                                     <span class="badge bg-secondary">LIBRE</span>
                                 {% endif %}
                             </td>
-                            <td class="text-end">
-                                <a href="{{ url_for('admin_eliminar_pago', id=p.id) }}" 
-                                   class="btn btn-outline-danger btn-sm"
-                                   onclick="return confirm('¿Eliminar voucher {{ p.voucher }}?')">
-                                    <i class="fas fa-trash"></i>
-                                </a>
+                            <td>
+                                <a href="{{ url_for('admin_eliminar_pago', id=p.id) }}" class="btn btn-outline-danger btn-sm" onclick="return confirm('¿Eliminar voucher?')"><i class="fas fa-trash"></i></a>
                             </td>
                         </tr>
                         {% endfor %}
@@ -129,12 +122,11 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
-
 <script>
     $(document).ready(function () {
         $('#tablaPagos').DataTable({
             language: { url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json" },
-            order: [[ 2, "desc" ]] // Ordenar por fecha descendente
+            order: [[ 2, "desc" ]] 
         });
     });
 </script>

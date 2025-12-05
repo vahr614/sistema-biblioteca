@@ -2,74 +2,99 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Biblioteca UNAP - Constancias</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consulta de Trámite</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
-<body class="bg-light d-flex align-items-center justify-content-center" style="min-height: 100vh;">
-    <div class="card shadow p-4" style="width: 100%; max-width: 450px;">
-        <div class="text-center mb-4">
-            <h3 class="fw-bold text-success">BIBLIOTECA UNAP</h3>
-            <p class="text-muted">Sistema de Constancia de No Adeudo</p>
-        </div>
+<body class="bg-light d-flex align-items-center min-vh-100">
 
-        <!-- MENSAJES DE SISTEMA -->
-        {% with messages = get_flashed_messages() %}
-            {% if messages %}
-                <div class="alert alert-info">{{ messages[0] }}</div>
-            {% endif %}
-        {% endwith %}
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-12 col-md-8 col-lg-6">
+                
+                <div class="card shadow-lg border-0 rounded-4">
+                    <div class="card-body p-4 p-md-5">
+                        <div class="text-center mb-4">
+                            <i class="fas fa-university fa-3x text-primary mb-3"></i>
+                            <h2 class="fw-bold">Biblioteca UNAP</h2>
+                            <h3 class="fw-bold">Sistema de Constancia de No Adeudo</h3>
+                            <p class="text-muted small">
+                                <strong>¿Ya tramitaste tu constancia?</strong> Ingresa tus datos para descargarla nuevamente.<br>
+                                <strong>¿Es tu primera vez?</strong> Ingresa para validar tu voucher.
+                            </p>
+                        </div>
 
-        {% if error %}
-            <div class="alert alert-danger">{{ error }}</div>
-        {% endif %}
+                        {% with messages = get_flashed_messages() %}
+                            {% if messages %}
+                                <div class="alert alert-success shadow-sm border-0 rounded-3">
+                                    <i class="fas fa-check-circle me-2"></i> {{ messages[0] }}
+                                </div>
+                            {% endif %}
+                        {% endwith %}
 
-        <!-- SI NO SE HA ENCONTRADO ALUMNO, MOSTRAR LOGIN -->
-        {% if not alumno %}
-        <form method="POST">
-            <div class="mb-3">
-                <label class="fw-bold">N° VOUCHER</label>
-                <input type="text" name="voucher" class="form-control" required placeholder="Ej: 145001">
+                        {% if error %}
+                            <div class="alert alert-danger shadow-sm border-0 rounded-3">
+                                <i class="fas fa-exclamation-triangle me-2"></i> {{ error }}
+                            </div>
+                        {% endif %}
+
+                        {% if alumno %}
+                            <div class="text-center animate__animated animate__fadeIn">
+                                <div class="alert alert-primary border-0 rounded-3 py-3">
+                                    <h5 class="fw-bold mb-1 text-primary"><i class="fas fa-user-graduate"></i> {{ alumno.nombre }}</h5>
+                                    <small class="text-muted d-block">{{ alumno.escuela }}</small>
+                                    <span class="badge bg-success mt-2">Constancia Generada</span>
+                                </div>
+                                
+                                <div class="d-grid gap-2">
+                                    <a href="{{ url_for('descargar_pdf', id=alumno.id) }}" class="btn btn-danger btn-lg rounded-3 shadow-sm">
+                                        <i class="fas fa-file-pdf me-2"></i> Descargar PDF
+                                    </a>
+                                    <a href="{{ url_for('descargar_word', id=alumno.id) }}" class="btn btn-primary btn-lg rounded-3 shadow-sm">
+                                        <i class="fas fa-file-word me-2"></i> Descargar Word
+                                    </a>
+                                </div>
+                                
+                                <hr class="my-4">
+                                <a href="/" class="btn btn-outline-secondary btn-sm rounded-pill px-4">
+                                    <i class="fas fa-search me-1"></i> Realizar otra consulta
+                                </a>
+                            </div>
+
+                        {% else %}
+                            <form method="POST">
+                                <div class="form-floating mb-3">
+                                    <input type="text" name="voucher" class="form-control rounded-3" id="floatingVoucher" placeholder="N° Voucher" required>
+                                    <label for="floatingVoucher"><i class="fas fa-ticket-alt me-1"></i> N° Voucher</label>
+                                </div>
+                                <div class="form-floating mb-3">
+                                    <input type="text" name="dni" class="form-control rounded-3" id="floatingDni" placeholder="DNI" required>
+                                    <label for="floatingDni"><i class="fas fa-id-card me-1"></i> DNI del Estudiante</label>
+                                </div>
+                                <div class="form-floating mb-4">
+                                    <input type="text" name="fecha" class="form-control rounded-3" id="floatingFecha" placeholder="DD/MM/AAAA" required>
+                                    <label for="floatingFecha"><i class="fas fa-calendar-alt me-1"></i> Fecha de Pago (DD/MM/AAAA)</label>
+                                </div>
+                                <button class="btn btn-primary w-100 py-3 fw-bold rounded-3 shadow-sm transition-hover">
+                                    <i class="fas fa-search me-2"></i> CONSULTAR / DESCARGAR
+                                </button>
+                            </form>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="text-center mt-5">
+                    <p class="text-muted small mb-2">&copy; 2025 Unidad de Biblioteca - UNAP</p>
+                    
+                    <a href="{{ url_for('login_admin') }}" class="text-decoration-none text-secondary small opacity-75 hover-opacity-100">
+                        <i class="fas fa-user-shield me-1"></i> Acceso Administrativo
+                    </a>
+                </div>
+
             </div>
-            <div class="mb-3">
-                <label class="fw-bold">DNI</label>
-                <input type="text" name="dni" class="form-control" required placeholder="Ej: 70112233">
-            </div>
-            <div class="mb-4">
-                <label class="fw-bold">FECHA DE PAGO</label>
-                <input type="text" name="fecha" class="form-control" required placeholder="Ej: 25/05/2025">
-                <small class="text-muted">Tal cual figura en el voucher</small>
-            </div>
-            <button class="btn btn-success w-100 fw-bold py-2">INGRESAR</button>
-        </form>
-        {% endif %}
-
-        <!-- SI SE ENCONTRÓ AL ALUMNO, MOSTRAR OPCIONES DE DESCARGA -->
-       {% if alumno %}
-        <div class="text-center">
-            <div class="alert alert-success border-0">
-                <h4 class="alert-heading">¡Bienvenido/a!</h4>
-                <p class="mb-0 fw-bold">{{ alumno.nombre }}</p>
-            </div>
-            
-            <p class="small text-muted">Su constancia está lista.</p>
-
-            <a href="{{ url_for('ver_pdf', id=alumno.id) }}" target="_blank" class="btn btn-danger w-100 py-3 fw-bold shadow mb-3">
-                👁️ VISUALIZAR E IMPRIMIR PDF
-            </a>
-
-            <a href="{{ url_for('descargar_pdf', id=alumno.id) }}" class="btn btn-outline-dark w-100 py-2">
-                📥 Descargar Archivo
-            </a>
-            
-            <a href="/" class="btn btn-link text-muted mt-3">Cerrar Sesión</a>
-        </div>
-        {% endif %}
-
-        <div class="text-center mt-4">
-            <a href="/login" class="small text-decoration-none text-muted">
-                <i class="fas fa-lock"></i> Acceso Administrativo (Login)
-            </a>
         </div>
     </div>
+
 </body>
 </html>
