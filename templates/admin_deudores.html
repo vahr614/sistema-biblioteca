@@ -3,118 +3,125 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión de Pagos</title>
+    <title>Gestión de Deudores - Lista Negra</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+    <style>
+        /* Estilo personalizado para un mejor focus en los selects/inputs */
+        .form-select:focus, .form-control:focus {
+            border-color: #dc3545; /* Color rojo de Bootstrap (danger) */
+            box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+        }
+        /* Ajuste para el color de fondo en hover de la fila */
+        .table-striped>tbody>tr:hover {
+            background-color: #f8d7da; /* Ligero color rojo claro */
+        }
+    </style>
 </head>
 <body class="bg-light">
 
-<div class="container py-4">
+<div class="container py-5">
     
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="fw-bold mb-0 text-success">
-            <i class="fas fa-money-bill-wave"></i> Gestión de Pagos
-        </h2>
-        <a href="/admin" class="btn btn-outline-secondary px-4 shadow-sm">
-            <i class="fas fa-arrow-left me-1"></i> Volver
+    <div class="d-flex justify-content-between align-items-center mb-5 border-bottom pb-3">
+        <h1 class="fw-bolder mb-0 text-danger display-6">
+            <i class="fas fa-hand-holding-usd me-2"></i> Gestión de Deudores
+        </h1>
+        <a href="/admin" class="btn btn-outline-danger btn-lg px-4 shadow-sm">
+            <i class="fas fa-arrow-left me-1"></i> Volver a Admin
         </a>
     </div>
 
     {% with messages = get_flashed_messages() %}
         {% if messages %}
-            <div class="alert alert-info shadow-sm border-0 mb-4">
+            <div class="alert alert-info shadow border-0 mb-4">
                 <i class="fas fa-info-circle me-2"></i> {{ messages[0] }}
             </div>
         {% endif %}
     {% endwith %}
 
-    <div class="row g-4">
-        <div class="col-12 col-lg-5">
-            <div class="card shadow-sm border-success h-100">
-                <div class="card-header bg-success text-white fw-bold py-2">
-                    <i class="fas fa-edit me-2"></i> Registro Manual
-                </div>
-                <div class="card-body p-4">
-                    <p class="text-muted small mb-3">Mínimo S/ 57.50</p>
-                    <form method="POST">
-                        <div class="form-floating mb-2">
-                            <input type="text" name="voucher_manual" class="form-control" id="vouch" placeholder="Voucher" required>
-                            <label for="vouch">N° Voucher</label>
-                        </div>
-                        <div class="form-floating mb-2">
-                            <input type="text" name="dni_manual" class="form-control" id="dni" placeholder="DNI" required>
-                            <label for="dni">DNI Alumno</label>
-                        </div>
-                        <div class="form-floating mb-2">
-                            <input type="text" name="fecha_manual" class="form-control" id="fecha" placeholder="Fecha" required>
-                            <label for="fecha">Fecha (DD/MM/AAAA)</label>
-                        </div>
-                        <div class="form-floating mb-3">
-                            <input type="number" step="0.01" name="monto_manual" class="form-control" id="monto" placeholder="Monto" required>
-                            <label for="monto">Monto (S/)</label>
-                        </div>
-                        <button class="btn btn-success w-100 fw-bold py-2 rounded-3">Registrar Pago</button>
-                    </form>
-                </div>
-            </div>
+    <div class="card shadow-lg border-danger mb-5">
+        <div class="card-header bg-danger text-white fw-bold py-3">
+            <h4 class="mb-0"><i class="fas fa-user-lock me-2"></i> Bloquear Nuevo Deudor</h4>
         </div>
+        <div class="card-body p-4">
+            <form method="POST" class="row g-4">
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-bold small text-muted">DNI O VOUCHER A BLOQUEAR</label>
+                    <input type="text" name="identificador" class="form-control form-control-lg" required placeholder="Ej: 70554433">
+                </div>
+                <div class="col-12 col-md-8">
+                    <label class="form-label fw-bold small text-muted">NOMBRE COMPLETO</label>
+                    <input type="text" name="nombre" class="form-control form-control-lg" required oninput="this.value = this.value.toUpperCase()" placeholder="Ej: JUAN PÉREZ LÓPEZ">
+                </div>
+                
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-bold small text-muted">TIPO DE PERSONA</label>
+                    <select name="tipo" class="form-select">
+                        <option value="ALUMNO" selected>ALUMNO</option>
+                        <option value="DOCENTE">DOCENTE</option>
+                        <option value="EXTERNO">EXTERNO</option>
+                    </select>
+                </div>
+                
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-bold small text-muted">FACULTAD</label>
+                    <select name="facultad" id="selectFacultad" class="form-select" required>
+                        <option value="">-- Seleccione Facultad --</option>
+                        {% for f in facultades %}
+                            <option value="{{ f.id }}">{{ f.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-        <div class="col-12 col-lg-7">
-            <div class="card shadow-sm border-primary h-100">
-                <div class="card-header bg-primary text-white fw-bold py-2">
-                    <i class="fas fa-file-upload me-2"></i> Carga Masiva
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-bold small text-muted">ESCUELA</label>
+                    <select name="escuela" id="selectEscuela" class="form-select" disabled>
+                        <option value="" disabled selected>Seleccione Facultad Primero</option>
+                        {# Las opciones de escuela se cargan dinámicamente con JavaScript #}
+                    </select>
                 </div>
-                <div class="card-body p-4">
-                    <div class="alert alert-light border small text-muted">
-                        <strong>Formato del Excel/TXT (Sin títulos):</strong><br>
-                        <code>VOUCHER | DNI | FECHA | MONTO</code>
-                    </div>
-                    <form method="POST" enctype="multipart/form-data">
-                        <div class="input-group mb-3">
-                            <input type="file" name="archivo" class="form-control" required accept=".txt,.csv,.xlsx">
-                            <button class="btn btn-primary px-4"><i class="fas fa-upload"></i> Subir</button>
-                        </div>
-                    </form>
+
+                <div class="col-12">
+                    <label class="form-label fw-bold small text-muted">MOTIVO DEL BLOQUEO</label>
+                    <input type="text" name="motivo" class="form-control form-control-lg" required placeholder="Ej: Deuda por préstamo de libros no devueltos">
                 </div>
-            </div>
+
+                <div class="col-12 mt-4">
+                    <button type="submit" class="btn btn-danger w-100 fw-bold py-3 rounded-3 shadow-lg">
+                        <i class="fas fa-lock me-2"></i> BLOQUEAR ACCESO
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
-
-    <div class="card shadow-sm mt-4 border-0">
-        <div class="card-header bg-dark text-white fw-bold py-2">
-            <i class="fas fa-list me-2"></i> Historial de Pagos
-        </div>
+    
+    <h2 class="fw-bold mb-4 text-secondary"><i class="fas fa-table me-2"></i> Deudores Bloqueados</h2>
+    
+    <div class="card shadow-sm border-0">
         <div class="card-body p-0">
             <div class="table-responsive p-3">
-                <table id="tablaPagos" class="table table-hover w-100 align-middle">
-                    <thead class="table-light">
+                <table id="tablaDeudores" class="table table-striped table-hover w-100 align-middle">
+                    <thead class="table-danger">
                         <tr>
-                            <th>Voucher</th>
-                            <th>DNI</th>
-                            <th>Fecha</th>
-                            <th>Monto</th>
-                            <th>Estado</th>
-                            <th>Acción</th>
+                            <th class="text-white">DNI/VOUCHER</th> 
+                            <th class="text-white">Nombre</th>
+                            <th class="text-white">Motivo</th>
+                            <th class="text-white">Facultad</th>
+                            <th class="text-white">Acción</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for p in pagos %}
+                        {% for d in deudores %}
                         <tr>
-                            <td><span class="badge bg-warning text-dark">{{ p.voucher }}</span></td>
-                            <td>{{ p.dni }}</td>
-                            <td>{{ p.fecha_pago }}</td>
-                            <td class="fw-bold text-success">{% if p.monto %}S/ {{ p.monto }}{% else %}-{% endif %}</td>
+                            <td class="fw-bold text-danger">{{ d.identificador }}</td> 
+                            <td>{{ d.nombre }}<br><small class="text-muted">{{ d.tipo }}</small></td>
+                            <td>{{ d.motivo }}</td>
+                            <td><small class="text-secondary">{{ d.facultad }}</small></td>
                             <td>
-                                {% if p.nombre %}
-                                    <span class="badge bg-success">USADO</span>
-                                    <div class="small text-muted text-truncate" style="max-width: 150px;">{{ p.nombre }}</div>
-                                {% else %}
-                                    <span class="badge bg-secondary">LIBRE</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <a href="{{ url_for('admin_eliminar_pago', id=p.id) }}" class="btn btn-outline-danger btn-sm" onclick="return confirm('¿Eliminar voucher?')"><i class="fas fa-trash"></i></a>
+                                <a href="{{ url_for('admin_eliminar_deudor', id=d.id) }}" class="btn btn-success btn-sm text-white shadow-sm" onclick="return confirm('¿Está seguro de DESBLOQUEAR a {{ d.nombre }}? Esto le dará acceso nuevamente.')">
+                                    <i class="fas fa-unlock me-1"></i> Desbloquear
+                                </a>
                             </td>
                         </tr>
                         {% endfor %}
@@ -130,9 +137,70 @@
 <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
 <script>
     $(document).ready(function () {
-        $('#tablaPagos').DataTable({
-            language: { url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json" },
-            order: [[ 2, "desc" ]] 
+        // --- 1. Inicialización de DataTables ---
+        var tabla = $('#tablaDeudores').DataTable({ 
+            language: { 
+                url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json" 
+            },
+            pageLength: 10,
+            searching: true,
+            info: true,
+        });
+
+        // Evento para el filtro de la tabla
+        $('#filtroFacultadTabla').on('change', function () {
+            var facultadSeleccionada = $(this).val();
+            // La columna "Facultad" es el índice 3
+            // La expresión regular busca el valor exacto para evitar coincidencias parciales
+            tabla.column(3).search(facultadSeleccionada ? '^' + $.fn.dataTable.util.escapeRegex(facultadSeleccionada) + '$' : '', true, false).draw();
+        });
+
+
+        // --- 2. Lógica de Carga Dinámica de Escuela según Facultad ---
+        const selectFacultad = document.getElementById('selectFacultad');
+        const selectEscuela = document.getElementById('selectEscuela');
+
+        selectFacultad.addEventListener('change', function() {
+            const idFacultad = this.value;
+            
+            if (!idFacultad) {
+                selectEscuela.disabled = true;
+                selectEscuela.innerHTML = '<option value="" disabled selected>Seleccione Facultad Primero</option>';
+                return;
+            }
+
+            selectEscuela.disabled = false;
+            selectEscuela.innerHTML = '<option value="" disabled selected>Cargando escuelas...</option>';
+
+            // Realizar la solicitud Fetch a tu API
+            // Nota: La ruta de tu API debe ser funcional (e.g., /api/escuelas/1)
+            fetch(`/api/escuelas/${idFacultad}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Error en la solicitud: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    selectEscuela.innerHTML = '<option value="" disabled selected>Seleccione Escuela...</option>';
+                    
+                    if (Array.isArray(data) && data.length > 0) {
+                        data.forEach(escuela => {
+                            const option = document.createElement('option');
+                            option.value = escuela.id; 
+                            option.textContent = escuela.nombre;
+                            selectEscuela.appendChild(option);
+                        });
+                    } else {
+                        selectEscuela.innerHTML = '<option value="" disabled selected>No hay escuelas para esta facultad</option>';
+                    }
+
+                })
+                .catch(error => {
+                    console.error('Error al cargar las escuelas:', error);
+                    selectEscuela.innerHTML = '<option value="" disabled selected>Error al cargar (Reintente)</option>';
+                    selectEscuela.disabled = true;
+                });
         });
     });
 </script>

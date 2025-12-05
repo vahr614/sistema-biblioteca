@@ -54,17 +54,21 @@
                 <a href="/admin/grados" class="btn btn-warning text-dark btn-sm-block"><i class="fas fa-award"></i> Grados</a>
                 {% endif %}
                 
-                {% if session.p_usuarios %}
-                <div class="vr mx-2 d-none d-md-block"></div>
-                
-                <a href="/admin/usuarios" class="btn btn-dark btn-sm-block">
-                    <i class="fas fa-users-cog"></i> Usuarios
-                </a>
+             {% if session.p_usuarios %}
+<div class="vr mx-2 d-none d-md-block"></div>
 
-                <a href="{{ url_for('admin_backup') }}" class="btn btn-outline-dark btn-sm-block" title="Descargar Copia de la Base de Datos">
-                    <i class="fas fa-database me-1"></i> Backup
-                </a>
-                {% endif %}
+<a href="/admin/usuarios" class="btn btn-dark btn-sm-block">
+    <i class="fas fa-users-cog"></i> Usuarios
+</a>
+
+<a href="/admin/auditoria" class="btn btn-warning btn-sm-block" title="Ver Historial de Cambios">
+    <i class="fas fa-history text-dark"></i> Historial
+</a>
+
+<a href="{{ url_for('admin_backup') }}" class="btn btn-outline-dark btn-sm-block" title="Descargar Copia de la Base de Datos">
+    <i class="fas fa-database me-1"></i> Backup
+</a>
+{% endif %}
             </div>
         </div>
     </div>
