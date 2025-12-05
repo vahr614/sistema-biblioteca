@@ -3,103 +3,167 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Completar Registro</title>
+    <title>Completar Datos</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .form-label { font-size: 0.85rem; font-weight: 700; color: #6c757d; }
+    </style>
 </head>
-<body class="bg-light py-4 py-md-5"> <div class="container">
+<body class="bg-light d-flex align-items-center min-vh-100">
+
+    <div class="container py-4">
         <div class="row justify-content-center">
-            <div class="col-12 col-lg-8 col-xl-6">
+            <div class="col-12 col-md-8 col-lg-6">
                 
-                <div class="card shadow border-0 rounded-3">
-                    <div class="card-header bg-primary text-white text-center py-3">
-                        <h4 class="mb-0 fw-bold">🎓 Finalizar Registro</h4>
+                <div class="card shadow-lg border-0 rounded-4">
+                    <div class="card-header bg-primary text-white text-center py-3 rounded-top-4">
+                        <h4 class="mb-0 fw-bold"><i class="fas fa-graduation-cap me-2"></i> Finalizar Registro</h4>
                     </div>
+                    
                     <div class="card-body p-4">
-                        <div class="alert alert-info d-flex align-items-center" role="alert">
-                            <div class="me-2">ℹ️</div>
-                            <div class="small">Datos validados. Por favor ingrese sus datos académicos tal cual figuran en su matrícula.</div>
+                        <div class="alert alert-info border-0 rounded-3 mb-4 d-flex align-items-center">
+                            <i class="fas fa-info-circle fa-2x me-3"></i>
+                            <div class="small">
+                                <strong>Voucher Validado:</strong> {{ alumno.voucher }}<br>
+                                Por favor ingrese sus datos académicos tal cual figuran en su matrícula.
+                            </div>
                         </div>
-                        
+
+                        <div class="d-grid mb-4">
+                            <button type="button" id="btnReniec" class="btn btn-outline-primary fw-bold dashed-border">
+                                <i class="fas fa-sync-alt me-2"></i> AUTOCOMPLETAR DATOS CON RENIEC
+                            </button>
+                            <div id="msgReniec" class="form-text text-center text-danger mt-1" style="display:none;"></div>
+                        </div>
+
                         <form method="POST">
+                            
                             <div class="row g-3 mb-3">
-                                <div class="col-12 col-md-6">
-                                    <label class="fw-bold small form-label">APELLIDO PATERNO</label>
-                                    <input type="text" name="paterno" class="form-control" required placeholder="Ej: PEREZ" oninput="this.value = this.value.toUpperCase()">
+                                <div class="col-6">
+                                    <label class="form-label">APELLIDO PATERNO</label>
+                                    <input type="text" name="paterno" id="txtPaterno" class="form-control" placeholder="Ej: PEREZ" required oninput="this.value = this.value.toUpperCase()">
                                 </div>
-                                <div class="col-12 col-md-6">
-                                    <label class="fw-bold small form-label">APELLIDO MATERNO</label>
-                                    <input type="text" name="materno" class="form-control" required placeholder="Ej: LOPEZ" oninput="this.value = this.value.toUpperCase()">
+                                <div class="col-6">
+                                    <label class="form-label">APELLIDO MATERNO</label>
+                                    <input type="text" name="materno" id="txtMaterno" class="form-control" placeholder="Ej: LOPEZ" required oninput="this.value = this.value.toUpperCase()">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">NOMBRES</label>
+                                    <input type="text" name="nombres" id="txtNombres" class="form-control" placeholder="Ej: JUAN CARLOS" required oninput="this.value = this.value.toUpperCase()">
                                 </div>
                             </div>
-                            
+
+                            <hr class="text-muted my-4">
+
                             <div class="mb-3">
-                                <label class="fw-bold small form-label">NOMBRES</label>
-                                <input type="text" name="nombres" class="form-control" required placeholder="Ej: JUAN CARLOS" oninput="this.value = this.value.toUpperCase()">
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label class="fw-bold small form-label">FACULTAD</label>
-                                <select name="facultad" id="selectFacultad" class="form-select py-2" required>
+                                <label class="form-label">FACULTAD</label>
+                                <select name="facultad" id="selectFacultad" class="form-select" required>
                                     <option value="" disabled selected>Seleccione Facultad...</option>
                                     {% for f in facultades %}
                                         <option value="{{ f.id }}">{{ f.nombre }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
-                            
+
                             <div class="mb-3">
-                                <label class="fw-bold small form-label">ESCUELA / CARRERA</label>
-                                <select name="escuela" id="selectEscuela" class="form-select py-2" required disabled>
+                                <label class="form-label">ESCUELA / CARRERA</label>
+                                <select name="escuela" id="selectEscuela" class="form-select" required disabled>
                                     <option value="" disabled selected>Primero seleccione Facultad...</option>
                                 </select>
                             </div>
-                            
+
                             <div class="mb-4">
-                                <label class="fw-bold small form-label">GRADO ACADÉMICO</label>
-                                <select name="grado" class="form-select py-2" required>
-                                    <option value="" disabled selected>Seleccione Grado...</option>
+                                <label class="form-label">GRADO ACADÉMICO</label>
+                                <select name="grado" class="form-select" required>
                                     {% for g in grados %}
                                         <option value="{{ g.nombre }}">{{ g.nombre }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
-                            
-                            <button class="btn btn-primary w-100 py-3 fw-bold rounded-3 shadow-sm">
-                                GUARDAR Y GENERAR CONSTANCIA
+
+                            <button class="btn btn-success w-100 py-3 fw-bold rounded-3 shadow-sm transition-hover">
+                                GUARDAR Y GENERAR CONSTANCIA <i class="fas fa-check-circle ms-2"></i>
                             </button>
                         </form>
                     </div>
+                </div>
+                
+                <div class="text-center mt-4">
+                    <a href="/" class="text-muted text-decoration-none small">
+                        <i class="fas fa-arrow-left me-1"></i> Cancelar
+                    </a>
                 </div>
 
             </div>
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        const selectFacultad = document.getElementById('selectFacultad');
-        const selectEscuela = document.getElementById('selectEscuela');
+        document.addEventListener('DOMContentLoaded', function() {
+            
+            // --- 1. LÓGICA RENIEC ---
+            const btnReniec = document.getElementById('btnReniec');
+            const dniAlumno = "{{ alumno.dni }}"; // Tomamos el DNI directamente de Python
 
-        selectFacultad.addEventListener('change', function() {
-            const idFacultad = this.value;
-            selectEscuela.disabled = false;
-            selectEscuela.innerHTML = '<option value="" disabled selected>Cargando escuelas...</option>';
+            btnReniec.addEventListener('click', function() {
+                const msg = document.getElementById('msgReniec');
+                const btn = this;
+                
+                // Efecto de carga
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Buscando...';
+                msg.style.display = 'none';
 
-            fetch(`/api/escuelas/${idFacultad}`)
-                .then(response => response.json())
-                .then(data => {
-                    selectEscuela.innerHTML = '<option value="" disabled selected>Seleccione Escuela...</option>';
-                    data.forEach(escuela => {
-                        const option = document.createElement('option');
-                        option.value = escuela.id;
-                        option.textContent = escuela.nombre;
-                        selectEscuela.appendChild(option);
+                fetch('/api/reniec/' + dniAlumno)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            document.getElementById('txtPaterno').value = data.paterno;
+                            document.getElementById('txtMaterno').value = data.materno;
+                            document.getElementById('txtNombres').value = data.nombres;
+                            btn.innerHTML = '<i class="fas fa-check"></i> ¡Datos Encontrados!';
+                            btn.classList.replace('btn-outline-primary', 'btn-success');
+                        } else {
+                            msg.innerText = "No se encontraron datos: " + data.msg;
+                            msg.style.display = 'block';
+                            btn.innerHTML = '<i class="fas fa-sync-alt me-2"></i> Reintentar';
+                        }
+                    })
+                    .catch(err => {
+                        msg.innerText = "Error de conexión.";
+                        msg.style.display = 'block';
+                        btn.innerHTML = '<i class="fas fa-sync-alt me-2"></i> Reintentar';
+                    })
+                    .finally(() => {
+                        btn.disabled = false;
                     });
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    selectEscuela.innerHTML = '<option value="" disabled selected>Error al cargar</option>';
-                });
+            });
+
+            // --- 2. LÓGICA DE ESCUELAS (Igual que en admin) ---
+            const selectFacultad = document.getElementById('selectFacultad');
+            const selectEscuela = document.getElementById('selectEscuela');
+
+            selectFacultad.addEventListener('change', function() {
+                const idFacultad = this.value;
+                selectEscuela.innerHTML = '<option value="" disabled selected>Cargando...</option>';
+                selectEscuela.disabled = false;
+
+                fetch(`/api/escuelas/${idFacultad}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        selectEscuela.innerHTML = '<option value="" disabled selected>-- Seleccione Escuela --</option>';
+                        data.forEach(escuela => {
+                            const option = document.createElement('option');
+                            option.value = escuela.id; // Aquí necesitamos el ID para guardarlo correctamente
+                            option.textContent = escuela.nombre;
+                            selectEscuela.appendChild(option);
+                        });
+                    });
+            });
         });
     </script>
+
 </body>
 </html>

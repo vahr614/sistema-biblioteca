@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 import subprocess
 import io
+import requests 
 
 # LIBRERÍAS PARA PDF
 from reportlab.pdfgen import canvas
@@ -600,6 +601,39 @@ def generar_pdf_sistema(id, download=False):
         return send_file(pdf_final, as_attachment=download, download_name=f"Constancia_{alumno.voucher}.pdf", mimetype='application/pdf')
     except Exception as e: return f"Error generando PDF: {str(e)}"
 
+
+# --- RUTA API PARA BUSCAR DNI (AJAX) ---
+@app.route('/api/reniec/<dni>')
+def consultar_reniec(dni):
+    # Esta ruta es pública para que el alumno pueda usarla al registrarse
+    
+    # ---------------------------------------------------------
+    # 1. CONSIGUE UN TOKEN GRATIS EN: https://apis.net.pe/
+    # 2. PÉGALO AQUÍ ABAJO ENTRE LAS COMILLAS
+    # ---------------------------------------------------------
+    token = "sk_12173.LPqyHZp6eIjhG4D2BmS79PhdnlotDUea" 
+    
+    # URL del servicio (puede variar según tu proveedor)
+    url = f"https://api.apis.net.pe/v1/dni?numero={dni}"
+    
+    try:
+        # Hacemos la consulta externa
+        response = requests.get(url, headers={'Authorization': f'Bearer {token}'})
+        
+        if response.status_code == 200:
+            datos = response.json()
+            # Devolvemos los datos limpios al formulario
+            return jsonify({
+                'success': True,
+                'nombres': datos.get('nombres'),
+                'paterno': datos.get('apellidoPaterno'),
+                'materno': datos.get('apellidoMaterno')
+            })
+        else:
+            return jsonify({'success': False, 'msg': 'DNI no encontrado o Token inválido'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'msg': f"Error de conexión: {str(e)}"})
 # --- INIT ---
 with app.app_context():
     db.create_all()
