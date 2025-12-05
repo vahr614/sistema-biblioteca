@@ -2,60 +2,89 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestión de Escuelas</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body class="bg-light">
 
-<div class="container py-5">
+<div class="container py-4">
+    
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>🎓 Gestión de Escuelas (Carreras)</h2>
-        <a href="/admin" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> Volver al Panel
+        <h2 class="fw-bold mb-0 text-info">
+            <i class="fas fa-graduation-cap"></i> Escuelas
+        </h2>
+        <a href="/admin" class="btn btn-outline-secondary px-4 shadow-sm">
+            <i class="fas fa-arrow-left me-1"></i> Volver
         </a>
     </div>
 
-    <div class="row">
-        <div class="col-md-4 mb-4">
-            <div class="card shadow border-info">
-                <div class="card-header bg-info text-white fw-bold">
-                    <i class="fas fa-plus-circle"></i> Nueva Escuela
+    <div class="row g-4">
+        <div class="col-12 col-lg-5">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-info text-white fw-bold py-3">
+                    <i class="fas fa-plus-circle me-2"></i> Nueva Escuela Profesional
                 </div>
-                <div class="card-body">
+                <div class="card-body p-4">
                     <form method="POST">
                         <div class="mb-3">
-                            <label class="form-label fw-bold small">NOMBRE DE LA ESCUELA</label>
-                            <input type="text" name="nombre" class="form-control" required placeholder="Ej: INGENIERÍA CIVIL" oninput="this.value = this.value.toUpperCase()">
+                            <label class="form-label fw-bold small text-muted">FACULTAD A LA QUE PERTENECE</label>
+                            <select name="facultad_id" class="form-select" required>
+                                <option value="" disabled selected>-- Seleccione Facultad --</option>
+                                {% for f in facultades %}
+                                    <option value="{{ f.id }}">{{ f.nombre }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
-                        <button class="btn btn-info w-100 fw-bold text-white">Guardar</button>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-muted">NOMBRE DE LA ESCUELA</label>
+                            <input type="text" name="nombre" class="form-control" placeholder="Ej: MEDICINA HUMANA" required oninput="this.value = this.value.toUpperCase()">
+                        </div>
+                        <button class="btn btn-info text-white w-100 fw-bold py-2 rounded-3">Guardar</button>
                     </form>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-8">
-            <div class="card shadow">
-                <div class="card-header bg-dark text-white fw-bold">
-                    <i class="fas fa-list"></i> Escuelas Registradas
+        <div class="col-12 col-lg-7">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white fw-bold py-3 text-info">
+                    <i class="fas fa-list me-2"></i> Carreras Registradas
                 </div>
                 <div class="card-body p-0">
-                    <table class="table table-striped mb-0">
-                        <tbody>
-                            {% for e in escuelas %}
-                            <tr>
-                                <td class="align-middle">{{ e.nombre }}</td>
-                                <td class="text-end">
-                                    <a href="{{ url_for('admin_eliminar_escuela', id=e.id) }}" 
-                                       class="btn btn-outline-danger btn-sm"
-                                       onclick="return confirm('¿Borrar esta escuela?')">
-                                        <i class="fas fa-trash"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                    <div class="table-responsive" style="max-height: 500px;">
+                        <table class="table table-hover mb-0 align-middle">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th class="ps-4">Escuela / Carrera</th>
+                                    <th>Facultad</th>
+                                    <th class="text-end pe-4">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for e in escuelas %}
+                                <tr>
+                                    <td class="ps-4 fw-bold text-dark">{{ e.nombre }}</td>
+                                    <td>
+                                        {% if e.facultad_rel %}
+                                            <span class="badge bg-light text-secondary border">{{ e.facultad_rel.nombre }}</span>
+                                        {% else %}
+                                            <span class="text-muted small">Sin asignar</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <a href="{{ url_for('admin_eliminar_escuela', id=e.id) }}" class="btn btn-outline-danger btn-sm" onclick="return confirm('¿Eliminar esta escuela?')">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="3" class="text-center py-4 text-muted">No hay escuelas registradas.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>

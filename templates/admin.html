@@ -10,7 +10,9 @@
 </head>
 <body class="bg-light">
 
-<div class="container-fluid container-xl py-4"> <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4 gap-3">
+<div class="container-fluid container-xl py-4"> 
+    
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4 gap-3">
         <div class="text-center text-md-start">
             <h2 class="fw-bold text-primary mb-0">📊 Dashboard Biblioteca</h2>
             <p class="text-muted mb-0">Hola, <strong>{{ usuario }}</strong></p>
@@ -46,14 +48,22 @@
                 {% endif %}
 
                 {% if session.p_config %}
-                <div class="vr mx-2 d-none d-md-block"></div> <a href="/admin/facultades" class="btn btn-secondary btn-sm-block"><i class="fas fa-university"></i> Facultades</a>
+                <div class="vr mx-2 d-none d-md-block"></div> 
+                <a href="/admin/facultades" class="btn btn-secondary btn-sm-block"><i class="fas fa-university"></i> Facultades</a>
                 <a href="/admin/escuelas" class="btn btn-info text-white btn-sm-block"><i class="fas fa-graduation-cap"></i> Escuelas</a>
                 <a href="/admin/grados" class="btn btn-warning text-dark btn-sm-block"><i class="fas fa-award"></i> Grados</a>
                 {% endif %}
                 
                 {% if session.p_usuarios %}
                 <div class="vr mx-2 d-none d-md-block"></div>
-                <a href="/admin/usuarios" class="btn btn-dark btn-sm-block"><i class="fas fa-users-cog"></i> Usuarios</a>
+                
+                <a href="/admin/usuarios" class="btn btn-dark btn-sm-block">
+                    <i class="fas fa-users-cog"></i> Usuarios
+                </a>
+
+                <a href="{{ url_for('admin_backup') }}" class="btn btn-outline-dark btn-sm-block" title="Descargar Copia de la Base de Datos">
+                    <i class="fas fa-database me-1"></i> Backup
+                </a>
                 {% endif %}
             </div>
         </div>
@@ -164,10 +174,6 @@
 </div>
 
 <script>
-    // ... Copia tus scripts de Chart.js aquí ...
-    // (O déjalos si ya estaban en tu archivo, no cambian la lógica, solo el HTML de arriba)
-    
-    // Configuración básica para que los gráficos no se estiren feo
     const commonOptions = { responsive: true, maintainAspectRatio: false };
 
     new Chart(document.getElementById('graficoFacultades'), {

@@ -18,8 +18,8 @@
                         <div class="text-center mb-4">
                             <i class="fas fa-university fa-3x text-primary mb-3"></i>
                             <h2 class="fw-bold">Biblioteca UNAP</h2>
-                            <h3 class="fw-bold">Sistema de Constancia de No Adeudo</h3>
-                            <p class="text-muted small">
+                            <h3 class="fw-bold h5 text-secondary">Sistema de Constancia de No Adeudo</h3>
+                            <p class="text-muted small mt-3">
                                 <strong>¿Ya tramitaste tu constancia?</strong> Ingresa tus datos para descargarla nuevamente.<br>
                                 <strong>¿Es tu primera vez?</strong> Ingresa para validar tu voucher.
                             </p>
@@ -47,12 +47,9 @@
                                     <span class="badge bg-success mt-2">Constancia Generada</span>
                                 </div>
                                 
-                                <div class="d-grid gap-2">
+                                <div class="d-grid gap-2 col-12 col-md-8 mx-auto">
                                     <a href="{{ url_for('descargar_pdf', id=alumno.id) }}" class="btn btn-danger btn-lg rounded-3 shadow-sm">
-                                        <i class="fas fa-file-pdf me-2"></i> Descargar PDF
-                                    </a>
-                                    <a href="{{ url_for('descargar_word', id=alumno.id) }}" class="btn btn-primary btn-lg rounded-3 shadow-sm">
-                                        <i class="fas fa-file-word me-2"></i> Descargar Word
+                                        <i class="fas fa-file-pdf me-2"></i> Descargar Constancia (PDF)
                                     </a>
                                 </div>
                                 

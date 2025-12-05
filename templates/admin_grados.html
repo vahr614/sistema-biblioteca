@@ -2,66 +2,72 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestión de Grados</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body class="bg-light">
 
-<div class="container py-5">
+<div class="container py-4">
+    
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>🎓 Gestión de Grados Académicos</h2>
-        <a href="/admin" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> Volver
+        <h2 class="fw-bold mb-0 text-warning text-dark">
+            <i class="fas fa-award"></i> Grados Académicos
+        </h2>
+        <a href="/admin" class="btn btn-outline-secondary px-4 shadow-sm">
+            <i class="fas fa-arrow-left me-1"></i> Volver
         </a>
     </div>
 
-    {% with messages = get_flashed_messages() %}
-        {% if messages %}
-            <div class="alert alert-info">{{ messages[0] }}</div>
-        {% endif %}
-    {% endwith %}
-
-    <div class="row">
-        <div class="col-md-4 mb-4">
-            <div class="card shadow border-warning">
-                <div class="card-header bg-warning text-dark fw-bold">
-                    <i class="fas fa-plus-circle"></i> Nuevo Grado
+    <div class="row g-4">
+        <div class="col-12 col-lg-5">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-warning text-dark fw-bold py-3">
+                    <i class="fas fa-plus-circle me-2"></i> Nuevo Grado
                 </div>
-                <div class="card-body">
+                <div class="card-body p-4">
                     <form method="POST">
                         <div class="mb-3">
-                            <label class="form-label fw-bold small">NOMBRE DEL GRADO</label>
-                            <input type="text" name="nombre" class="form-control" required placeholder="Ej: POSDOCTORADO" oninput="this.value = this.value.toUpperCase()">
+                            <label class="form-label fw-bold small text-muted">NOMBRE DEL GRADO</label>
+                            <input type="text" name="nombre" class="form-control" placeholder="Ej: BACHILLER" required oninput="this.value = this.value.toUpperCase()">
                         </div>
-                        <button class="btn btn-warning w-100 fw-bold">Guardar</button>
+                        <button class="btn btn-warning w-100 fw-bold py-2 rounded-3">Guardar</button>
                     </form>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-8">
-            <div class="card shadow">
-                <div class="card-header bg-dark text-white fw-bold">
-                    <i class="fas fa-list"></i> Grados Registrados
+        <div class="col-12 col-lg-7">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white fw-bold py-3 text-warning text-dark">
+                    <i class="fas fa-list me-2"></i> Grados Registrados
                 </div>
                 <div class="card-body p-0">
-                    <table class="table table-striped mb-0">
-                        <tbody>
-                            {% for g in grados %}
-                            <tr>
-                                <td class="align-middle">{{ g.nombre }}</td>
-                                <td class="text-end">
-                                    <a href="{{ url_for('admin_eliminar_grado', id=g.id) }}" 
-                                       class="btn btn-outline-danger btn-sm"
-                                       onclick="return confirm('¿Borrar este grado?')">
-                                        <i class="fas fa-trash"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-4">Descripción</th>
+                                    <th class="text-end pe-4">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for g in grados %}
+                                <tr>
+                                    <td class="ps-4 fw-bold">{{ g.nombre }}</td>
+                                    <td class="text-end pe-4">
+                                        <a href="{{ url_for('admin_eliminar_grado', id=g.id) }}" class="btn btn-outline-danger btn-sm" onclick="return confirm('¿Eliminar este grado?')">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="2" class="text-center py-4 text-muted">No hay grados registrados.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>

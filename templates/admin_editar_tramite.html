@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Trámite</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-light">
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold mb-0 text-warning text-dark">
+            <i class="fas fa-edit"></i> Corregir Constancia
+        </h2>
+        <a href="/admin/lista" class="btn btn-outline-secondary px-4">
+            <i class="fas fa-arrow-left me-1"></i> Cancelar
+        </a>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-8">
+            <div class="card shadow border-0">
+                <div class="card-body p-4">
+                    <form method="POST">
+                        <h6 class="text-muted fw-bold mb-3">DATOS DE PAGO</h6>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted fw-bold">VOUCHER</label>
+                                <input type="text" name="voucher" class="form-control" value="{{ alumno.voucher }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted fw-bold">DNI</label>
+                                <input type="text" name="dni" class="form-control" value="{{ alumno.dni }}" required>
+                            </div>
+                        </div>
+
+                        <h6 class="text-muted fw-bold mb-3 mt-4">DATOS ACADÉMICOS</h6>
+                        <div class="mb-3">
+                            <label class="form-label small text-muted fw-bold">NOMBRE COMPLETO</label>
+                            <input type="text" name="nombre" class="form-control" value="{{ alumno.nombre }}" required oninput="this.value = this.value.toUpperCase()">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small text-muted fw-bold">FACULTAD</label>
+                            <select name="facultad" id="selectFacultad" class="form-select" required>
+                                {% for f in facultades %}
+                                    <option value="{{ f.id }}" {% if f.nombre == alumno.facultad %}selected{% endif %}>{{ f.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small text-muted fw-bold">ESCUELA / CARRERA</label>
+                            <select name="escuela" id="selectEscuela" class="form-select" required data-current="{{ id_escuela_actual }}">
+                                <option value="" disabled selected>Cargando...</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label small text-muted fw-bold">GRADO</label>
+                            <select name="grado" class="form-select" required>
+                                {% for g in grados %}
+                                    <option value="{{ g.nombre }}" {% if g.nombre == alumno.grado %}selected{% endif %}>{{ g.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <button class="btn btn-warning w-100 fw-bold py-3 rounded-3 shadow-sm">
+                            <i class="fas fa-save me-2"></i> GUARDAR CORRECCIÓN
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const selectFacultad = document.getElementById('selectFacultad');
+        const selectEscuela = document.getElementById('selectEscuela');
+        
+        // Obtenemos el ID de la escuela que tiene el alumno actualmente (lo pasamos desde Python)
+        const currentEscuelaId = selectEscuela.getAttribute('data-current');
+
+        // Función para cargar escuelas
+        function cargarEscuelas(idFacultad, idPreseleccionado = null) {
+            selectEscuela.innerHTML = '<option value="" disabled>Cargando...</option>';
+            selectEscuela.disabled = true;
+
+            fetch(`/api/escuelas/${idFacultad}`)
+                .then(response => response.json())
+                .then(data => {
+                    selectEscuela.innerHTML = '<option value="" disabled>Seleccione Escuela...</option>';
+                    let encontrado = false;
+                    
+                    data.forEach(escuela => {
+                        const option = document.createElement('option');
+                        option.value = escuela.id;
+                        option.textContent = escuela.nombre;
+                        
+                        // Si el ID coincide con el del alumno, lo seleccionamos
+                        if (idPreseleccionado && parseInt(escuela.id) === parseInt(idPreseleccionado)) {
+                            option.selected = true;
+                            encontrado = true;
+                        }
+                        selectEscuela.appendChild(option);
+                    });
+
+                    // Si no encontramos la escuela (ej: se cambió de facultad), seleccionamos la opción por defecto
+                    if (!encontrado) {
+                        selectEscuela.value = "";
+                    }
+                    
+                    selectEscuela.disabled = false;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    selectEscuela.innerHTML = '<option value="" disabled selected>Error al cargar</option>';
+                });
+        }
+
+        // 1. Cargar al inicio (usando la facultad seleccionada y la escuela actual)
+        if (selectFacultad.value) {
+            cargarEscuelas(selectFacultad.value, currentEscuelaId);
+        }
+
+        // 2. Cargar cuando el usuario cambia la facultad
+        selectFacultad.addEventListener('change', function() {
+            // Al cambiar manualmente, ya no pre-seleccionamos nada (null)
+            cargarEscuelas(this.value, null);
+        });
+    });
+</script>
+
+</body>
+</html>

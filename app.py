@@ -3,31 +3,32 @@ import pandas as pd
 from flask import Flask, render_template, request, redirect, url_for, flash, send_file, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, desc
-from datetime import datetime
+from datetime import datetime, timedelta # Importamos timedelta para el tiempo de sesión
 from werkzeug.security import generate_password_hash, check_password_hash
 import subprocess
 import io
 
 # LIBRERÍAS PARA DOCUMENTOS
-from docxtpl import DocxTemplate
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
+# Librerías para seguridad PDF
 from pypdf import PdfReader, PdfWriter
+from pypdf.constants import UserAccessPermissions 
 
 app = Flask(__name__)
-# Clave secreta para seguridad (Render la puede configurar, o usa esta por defecto)
 app.secret_key = os.environ.get('SECRET_KEY', 'clave_segura_unap_2025')
 
+# --- CONFIGURACIÓN DE SESIÓN (AUTO-LOGOUT) ---
+# El administrador se desconectará si está inactivo por 10 minutos
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=10)
+
 # --- CONFIGURACIÓN DE LA BASE DE DATOS ---
-# 1. Intentamos leer la configuración desde Render
 db_uri = os.environ.get('DATABASE_URL')
 
-# 2. Si no hay configuración de Render, usamos la local (Tu PC)
 if not db_uri:
-    # Contraseña simple 'admin123' para evitar errores de tildes en Windows
-    db_uri = 'postgresql://postgres:admin123@localhost:5432/biblioteca_db'
+    # Configuración local
+    db_uri = 'postgresql://db_biblioteca_f9zy_user:aKYvfUON1Wql05SGi90GWsFwSuf4NBNS@dpg-d4o8kt2dbo4c73ad2pe0-a.oregon-postgres.render.com/db_biblioteca_f9zy'
 
-# 3. Parche obligatorio para que funcione en Render (cambia postgres:// a postgresql://)
 if db_uri and db_uri.startswith("postgres://"):
     db_uri = db_uri.replace("postgres://", "postgresql://", 1)
 
@@ -67,7 +68,6 @@ class Administrador(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     usuario = db.Column(db.String(50), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
-    # Permisos
     p_pagos = db.Column(db.Boolean, default=False)
     p_deudores = db.Column(db.Boolean, default=False)
     p_reportes = db.Column(db.Boolean, default=False)
@@ -91,7 +91,7 @@ class Grado(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), unique=True, nullable=False)
 
-# --- RUTAS API (Para selects dinámicos) ---
+# --- RUTAS API ---
 @app.route('/api/escuelas/<int:id_facultad>')
 def api_get_escuelas(id_facultad):
     escuelas = Escuela.query.filter_by(facultad_id=id_facultad).order_by(Escuela.nombre).all()
@@ -107,21 +107,17 @@ def atencion():
         dni = request.form.get('dni', '').strip()
         fecha = request.form.get('fecha', '').strip()
 
-        # 1. Verificar si es deudor
         deudor = Deudor.query.filter((Deudor.identificador==dni) | (Deudor.identificador==voucher)).first()
         if deudor:
             error = f"🚫 ACCESO DENEGADO: {deudor.tipo} bloqueado por '{deudor.motivo}'."
         else:
-            # 2. Buscar pago
             alumno = Alumno.query.filter_by(voucher=voucher, dni=dni, fecha_pago=fecha).first()
             if alumno:
                 if alumno.monto and alumno.monto < 57.50:
                     error = "❌ Error: El monto pagado es insuficiente (Menor a S/ 57.50)."
                 elif alumno.nombre:
-                    # Ya registrado -> Mostrar descarga
                     alumno_encontrado = alumno
                 else:
-                    # Nuevo -> Ir a completar datos
                     flash("✅ Pago validado. Complete sus datos.")
                     return redirect(url_for('completar_datos', id=alumno.id))
             else:
@@ -138,6 +134,10 @@ def login_admin():
         if admin and check_password_hash(admin.password, password_ingresado):
             session['admin_logged_in'] = True
             session['admin_user'] = admin.usuario
+            
+            # --- ACTIVAR EL TEMPORIZADOR DE LA SESIÓN ---
+            session.permanent = True  # Esto activa el conteo de 10 minutos
+            
             session['p_pagos'] = admin.p_pagos
             session['p_deudores'] = admin.p_deudores
             session['p_reportes'] = admin.p_reportes
@@ -163,7 +163,6 @@ def admin():
     t_pendientes = t_vouchers - t_emitidas
     t_deudores = Deudor.query.count()
     
-    # Datos para gráficos
     q_fac = db.session.query(Alumno.facultad, func.count(Alumno.id)).filter(Alumno.facultad != None).group_by(Alumno.facultad).all()
     l_fac, d_fac = ([row[0] for row in q_fac], [row[1] for row in q_fac])
     
@@ -188,7 +187,6 @@ def admin_backup():
     
     db_url = app.config['SQLALCHEMY_DATABASE_URI']
     filename = f"backup_{datetime.now().strftime('%Y%m%d_%H%M')}.sql"
-    # pg_dump viene instalado en Render
     command = f"pg_dump {db_url} -f {filename}"
     
     try:
@@ -204,7 +202,6 @@ def admin_pagos():
     if not session.get('admin_logged_in') or not session.get('p_pagos'): return redirect(url_for('admin'))
     
     if request.method == 'POST':
-        # Manual
         if 'voucher_manual' in request.form:
             v = request.form['voucher_manual'].strip()
             d = request.form['dni_manual'].strip()
@@ -221,7 +218,6 @@ def admin_pagos():
                 else: flash("⚠️ Voucher ya existe.")
             except: flash("❌ El monto debe ser numérico.")
 
-        # Carga Masiva
         elif 'archivo' in request.files:
             file = request.files['archivo']
             if file.filename != '':
@@ -287,6 +283,72 @@ def admin_lista():
     if not session.get('admin_logged_in') or not session.get('p_reportes'): return redirect(url_for('admin'))
     alumnos = Alumno.query.filter(Alumno.nombre != None).order_by(Alumno.id.desc()).all()
     return render_template('admin_lista.html', alumnos=alumnos, usuario=session.get('admin_user'))
+
+# --- EXPORTAR A EXCEL ---
+@app.route('/admin/exportar_excel')
+def admin_exportar_excel():
+    if not session.get('admin_logged_in') or not session.get('p_reportes'):
+        return redirect(url_for('admin'))
+    
+    alumnos = Alumno.query.filter(Alumno.nombre != None).order_by(Alumno.id.desc()).all()
+    
+    data = []
+    for a in alumnos:
+        data.append({
+            'N_CONSTANCIA': f"{str(a.numero_anual).zfill(3)}-{a.anio_registro}",
+            'FECHA_TRAMITE': a.fecha_registro.strftime('%d/%m/%Y'),
+            'VOUCHER': a.voucher,
+            'DNI': a.dni,
+            'ALUMNO': a.nombre,
+            'FACULTAD': a.facultad,
+            'ESCUELA': a.escuela,
+            'GRADO': a.grado,
+            'MONTO': a.monto
+        })
+    
+    df = pd.DataFrame(data)
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Reporte_Constancias')
+    
+    output.seek(0)
+    
+    nombre_archivo = f"Reporte_Constancias_{datetime.now().strftime('%Y%m%d')}.xlsx"
+    return send_file(output, as_attachment=True, download_name=nombre_archivo, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+# --- EDITAR TRÁMITE ---
+@app.route('/admin/editar_tramite/<int:id>', methods=['GET', 'POST'])
+def admin_editar_tramite(id):
+    if not session.get('admin_logged_in') or not session.get('p_reportes'):
+        return redirect(url_for('admin'))
+    
+    alumno = Alumno.query.get_or_404(id)
+    
+    if request.method == 'POST':
+        alumno.voucher = request.form['voucher'].strip()
+        alumno.dni = request.form['dni'].strip()
+        alumno.nombre = request.form['nombre'].strip().upper()
+        
+        try:
+            fac_obj = Facultad.query.get(int(request.form['facultad']))
+            esc_obj = Escuela.query.get(int(request.form['escuela']))
+            alumno.facultad = fac_obj.nombre
+            alumno.escuela = esc_obj.nombre
+        except:
+            pass
+
+        alumno.grado = request.form['grado'].strip().upper()
+        
+        db.session.commit()
+        flash(f"✅ Datos de {alumno.nombre} corregidos correctamente.")
+        return redirect(url_for('admin_lista'))
+
+    facs = Facultad.query.order_by(Facultad.nombre).all()
+    grados = Grado.query.all()
+    escuela_actual = Escuela.query.filter_by(nombre=alumno.escuela).first()
+    id_escuela_actual = escuela_actual.id if escuela_actual else 0
+    
+    return render_template('admin_editar_tramite.html', alumno=alumno, facultades=facs, grados=grados, id_escuela_actual=id_escuela_actual)
 
 # --- GESTIÓN USUARIOS ---
 @app.route('/admin/usuarios', methods=['GET', 'POST'])
@@ -455,32 +517,19 @@ def generar_pdf_sistema(id, download=False):
         page = existing_pdf.pages[0]
         page.merge_page(new_pdf.pages[0])
         output.add_page(page)
+        
+        # --- ENCRIPTACIÓN Y BLOQUEO DE EDICIÓN ---
+        output.encrypt(
+            user_password="", 
+            owner_password="Sistema_Biblioteca_Seguro_2025", 
+            permissions_flag=UserAccessPermissions.PRINT
+        )
+
         pdf_final = io.BytesIO()
         output.write(pdf_final)
         pdf_final.seek(0)
         return send_file(pdf_final, as_attachment=download, download_name=f"Constancia_{alumno.voucher}.pdf", mimetype='application/pdf')
-    except: return "Error: Falta fondo_constancia.pdf"
-
-@app.route('/descargar_word/<int:id>')
-def descargar_word(id):
-    alumno = Alumno.query.get_or_404(id)
-    numero_final = alumno.numero_anual if alumno.numero_anual else alumno.id
-    anio_final = alumno.anio_registro if alumno.anio_registro else datetime.now().year
-    txt_facultad = alumno.facultad.replace("FACULTAD DE ", "").replace("FACULTAD ", "")
-    
-    try:
-        doc = DocxTemplate("plantilla_constancia.docx")
-        context = {
-            'correlativo': f"{str(numero_final).zfill(3)}-{anio_final}-UB/DBU-UNAP",
-            'nombre': alumno.nombre, 'facultad': txt_facultad, 'escuela': alumno.escuela, 'grado': alumno.grado,
-            'fecha': f"{datetime.now().day} de {('enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre')[datetime.now().month-1]} de {datetime.now().year}"
-        }
-        doc.render(context)
-        file_stream = io.BytesIO()
-        doc.save(file_stream)
-        file_stream.seek(0)
-        return send_file(file_stream, as_attachment=True, download_name=f"Constancia_{alumno.voucher}.docx", mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-    except: return "Error: Falta plantilla_constancia.docx"
+    except Exception as e: return f"Error generando PDF: {str(e)}"
 
 # --- INICIALIZACIÓN ---
 with app.app_context():
